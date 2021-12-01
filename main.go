@@ -10,9 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// @title SoftwareWarehouse Web API
+// @title ServerServing Web API
 // @version 1.0
-// @description This is a SoftwareWarehouse API server.
+// @description This is a ServerServing API server.
 // @contact.name API Support
 // @contact.url http://www.swagger.io/support
 // @contact.email support@swagger.io
