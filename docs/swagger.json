@@ -1,0 +1,374 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "This is a SoftwareWarehouse API server.",
+    "title": "SoftwareWarehouse Web API",
+    "contact": {
+      "name": "API Support",
+      "url": "http://www.swagger.io/support",
+      "email": "support@swagger.io"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    },
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/v1/sessions/": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "session"
+        ],
+        "summary": "检查登录状态。",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/api_models.SessionsCheckResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "session"
+        ],
+        "summary": "创建session。（登录）",
+        "parameters": [
+          {
+            "description": "createRequest",
+            "name": "createRequest",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/api_models.SessionsCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/api_models.SessionsCreateResponse"
+            }
+          }
+        }
+      },
+      "delete": {
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "session"
+        ],
+        "summary": "退出session。（退出登录）",
+        "parameters": [
+          {
+            "description": "destroyRequest",
+            "name": "destroyRequest",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/api_models.SessionsDestroyRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/api_models.SessionsDestroyResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/test/error_handler": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "test"
+        ],
+        "summary": "test error handler",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/test/ping": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "test"
+        ],
+        "summary": "ping",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/users/": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "user"
+        ],
+        "summary": "获取多个用户信息，可以添加关键字对姓名搜索。",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "from",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "searchKeyword",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "name": "size",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/api_models.UsersInfosResponse"
+            }
+          }
+        }
+      },
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "user"
+        ],
+        "summary": "注册用户",
+        "parameters": [
+          {
+            "description": "createRequest",
+            "name": "createRequest",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/api_models.UsersCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/api_models.UsersCreateResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/users/{id}": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "user"
+        ],
+        "summary": "获取单个用户信息",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/api_models.UsersInfoResponse"
+            }
+          }
+        }
+      },
+      "put": {
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "user"
+        ],
+        "summary": "修改用户信息",
+        "parameters": [
+          {
+            "type": "integer",
+            "description": "id",
+            "name": "id",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "updateRequest",
+            "name": "updateRequest",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/api_models.UsersUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/api_models.UsersUpdateResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "api_models.SessionsCheckResponse": {
+      "type": "object",
+      "properties": {
+        "userID": {
+          "type": "integer"
+        }
+      }
+    },
+    "api_models.SessionsCreateRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "pwd": {
+          "type": "string"
+        }
+      }
+    },
+    "api_models.SessionsCreateResponse": {
+      "type": "object"
+    },
+    "api_models.SessionsDestroyRequest": {
+      "type": "object"
+    },
+    "api_models.SessionsDestroyResponse": {
+      "type": "object"
+    },
+    "api_models.User": {
+      "type": "object",
+      "properties": {
+        "admin": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "id": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "pwd": {
+          "type": "string"
+        },
+        "updated_at": {
+          "type": "string"
+        }
+      }
+    },
+    "api_models.UsersCreateRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "pwd": {
+          "type": "string"
+        }
+      }
+    },
+    "api_models.UsersCreateResponse": {
+      "type": "object"
+    },
+    "api_models.UsersInfoResponse": {
+      "type": "object",
+      "properties": {
+        "admin": {
+          "type": "boolean"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "id": {
+          "type": "integer"
+        },
+        "name": {
+          "type": "string"
+        },
+        "pwd": {
+          "type": "string"
+        },
+        "updated_at": {
+          "type": "string"
+        }
+      }
+    },
+    "api_models.UsersInfosResponse": {
+      "type": "object",
+      "properties": {
+        "infos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/api_models.User"
+          }
+        },
+        "total_count": {
+          "type": "integer"
+        }
+      }
+    },
+    "api_models.UsersUpdateRequest": {
+      "type": "object",
+      "properties": {
+        "admin": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "pwd": {
+          "type": "string"
+        }
+      }
+    },
+    "api_models.UsersUpdateResponse": {
+      "type": "object"
+    }
+  }
+}

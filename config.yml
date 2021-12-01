@@ -1,0 +1,25 @@
+dev:
+  app_name: "web-api"
+  host: "0.0.0.0"
+  port: 4400
+  mysql_config:
+    addr: "47.93.56.75:3306"
+    db_name: "server_serving"
+    user_name: "root"
+    pwd: "zhjt9910"
+  redis_config:
+    addr: "47.93.56.75:6379"
+  cmds_scripts_path: "/Users/purchaser/go/src/ServerServing/cmds_scripts"
+
+prd:
+  app_name: "web-api"
+  host: "0.0.0.0" # for test
+  port: 4400
+  mysql_config:
+    addr: "47.93.56.75:3306"
+    db_name: "server_serving"
+    user_name: "root"
+    pwd: "zhjt9910"
+  redis_config:
+    addr: "47.93.56.75:6379"
+  cmds_scripts_path: "/Users/purchaser/go/src/ServerServing/cmds_scripts"

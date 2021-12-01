@@ -1,0 +1,240 @@
+definitions:
+  api_models.SessionsCheckResponse:
+    properties:
+      userID:
+        type: integer
+    type: object
+  api_models.SessionsCreateRequest:
+    properties:
+      name:
+        type: string
+      pwd:
+        type: string
+    type: object
+  api_models.SessionsCreateResponse:
+    type: object
+  api_models.SessionsDestroyRequest:
+    type: object
+  api_models.SessionsDestroyResponse:
+    type: object
+  api_models.User:
+    properties:
+      admin:
+        type: boolean
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      pwd:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  api_models.UsersCreateRequest:
+    properties:
+      name:
+        type: string
+      pwd:
+        type: string
+    type: object
+  api_models.UsersCreateResponse:
+    type: object
+  api_models.UsersInfoResponse:
+    properties:
+      admin:
+        type: boolean
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      pwd:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  api_models.UsersInfosResponse:
+    properties:
+      infos:
+        items:
+          $ref: '#/definitions/api_models.User'
+        type: array
+      total_count:
+        type: integer
+    type: object
+  api_models.UsersUpdateRequest:
+    properties:
+      admin:
+        type: boolean
+      name:
+        type: string
+      pwd:
+        type: string
+    type: object
+  api_models.UsersUpdateResponse:
+    type: object
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a SoftwareWarehouse API server.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: SoftwareWarehouse Web API
+  version: "1.0"
+paths:
+  /api/v1/sessions/:
+    delete:
+      parameters:
+        - description: destroyRequest
+          in: body
+          name: destroyRequest
+          required: true
+          schema:
+            $ref: '#/definitions/api_models.SessionsDestroyRequest'
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.SessionsDestroyResponse'
+      summary: 退出session。（退出登录）
+      tags:
+        - session
+    get:
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.SessionsCheckResponse'
+      summary: 检查登录状态。
+      tags:
+        - session
+    post:
+      parameters:
+        - description: createRequest
+          in: body
+          name: createRequest
+          required: true
+          schema:
+            $ref: '#/definitions/api_models.SessionsCreateRequest'
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.SessionsCreateResponse'
+      summary: 创建session。（登录）
+      tags:
+        - session
+  /api/v1/test/error_handler:
+    get:
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: ""
+      summary: test error handler
+      tags:
+        - test
+  /api/v1/test/ping:
+    get:
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: ""
+      summary: ping
+      tags:
+        - test
+  /api/v1/users/:
+    get:
+      parameters:
+        - in: query
+          name: from
+          type: integer
+        - in: query
+          name: searchKeyword
+          type: string
+        - in: query
+          name: size
+          type: integer
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.UsersInfosResponse'
+      summary: 获取多个用户信息，可以添加关键字对姓名搜索。
+      tags:
+        - user
+    post:
+      parameters:
+        - description: createRequest
+          in: body
+          name: createRequest
+          required: true
+          schema:
+            $ref: '#/definitions/api_models.UsersCreateRequest'
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.UsersCreateResponse'
+      summary: 注册用户
+      tags:
+        - user
+  /api/v1/users/{id}:
+    get:
+      parameters:
+        - description: id
+          in: path
+          name: id
+          required: true
+          type: integer
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.UsersInfoResponse'
+      summary: 获取单个用户信息
+      tags:
+        - user
+    put:
+      parameters:
+        - description: id
+          in: path
+          name: id
+          required: true
+          type: integer
+        - description: updateRequest
+          in: body
+          name: updateRequest
+          required: true
+          schema:
+            $ref: '#/definitions/api_models.UsersUpdateRequest'
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api_models.UsersUpdateResponse'
+      summary: 修改用户信息
+      tags:
+        - user
+swagger: "2.0"

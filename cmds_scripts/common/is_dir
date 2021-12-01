@@ -1,0 +1,1 @@
+sudo [ -d "%s" ] && echo 1 || echo 0

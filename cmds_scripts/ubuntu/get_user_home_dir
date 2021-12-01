@@ -1,0 +1,1 @@
+sudo getent passwd "%s" | cut -d: -f6

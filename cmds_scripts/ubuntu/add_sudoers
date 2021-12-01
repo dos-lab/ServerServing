@@ -1,0 +1,1 @@
+sudo /bin/bash -c "echo '%s ALL=(ALL:ALL) ALL' >> /etc/sudoers"
