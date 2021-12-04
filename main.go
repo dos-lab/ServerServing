@@ -26,7 +26,7 @@ func main() {
 	registerMiddleware(r)
 	api.Register(r)
 	addr := fmt.Sprintf("%s:%d", config.GetConfig().Host, config.GetConfig().Port)
-	err := r.Run(addr) // listen and serve on 0.0.0.0:8080
+	err := r.Run(addr)
 	if err != nil {
 		panic(err)
 	}

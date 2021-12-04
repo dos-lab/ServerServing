@@ -21,6 +21,11 @@ var (
 		Status:  http.StatusBadRequest,
 		Stable:  true,
 	}
+	InvalidParamErr = &APIErr{
+		Message: "请求参数有误",
+		Status:  http.StatusOK,
+		Stable:  true,
+	}
 	ForbiddenErr = &APIErr{
 		Message: "禁止访问",
 		Status:  http.StatusForbidden,

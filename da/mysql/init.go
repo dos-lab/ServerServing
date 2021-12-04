@@ -24,6 +24,14 @@ func InitMySQL() {
 	if err != nil {
 		panic(err)
 	}
+	err = db.AutoMigrate(&da_models.Server{})
+	if err != nil {
+		panic(err)
+	}
+	err = db.AutoMigrate(&da_models.Account{})
+	if err != nil {
+		panic(err)
+	}
 }
 
 func GetDB() *gorm.DB {

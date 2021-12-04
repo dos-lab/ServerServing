@@ -2,7 +2,9 @@ package handler
 
 import (
 	apiFormat "ServerServing/api/format"
+	daModels "ServerServing/da/mysql/da_models"
 	SErr "ServerServing/err"
+	models "ServerServing/internal/internal_models"
 	"ServerServing/internal/service"
 	"ServerServing/util"
 	"github.com/gin-gonic/gin"
@@ -112,7 +114,7 @@ func (h UsersHandler) Update(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.A
 	return apiFormat.SimpleOKResp(&models.UsersUpdateResponse{}), nil
 }
 
-func (h UsersHandler) packUser(user *models.User) *models.User {
+func (h UsersHandler) packUser(user *daModels.User) *models.User {
 	return &models.User{
 		ID:        user.ID,
 		CreatedAt: user.CreatedAt,
@@ -123,7 +125,7 @@ func (h UsersHandler) packUser(user *models.User) *models.User {
 	}
 }
 
-func (h UsersHandler) packUsers(users []*models.User) []*models.User {
+func (h UsersHandler) packUsers(users []*daModels.User) []*models.User {
 	packed := make([]*models.User, 0, len(users))
 	for _, user := range users {
 		packed = append(packed, h.packUser(user))

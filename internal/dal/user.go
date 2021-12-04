@@ -2,7 +2,7 @@ package dal
 
 import (
 	"ServerServing/da/mysql"
-	"ServerServing/da/mysql/da_models"
+	daModels "ServerServing/da/mysql/da_models"
 	SErr "ServerServing/err"
 	"ServerServing/internal/internal_models"
 	"gorm.io/gorm"
@@ -15,21 +15,21 @@ func GetDal() UserDal {
 	return UserDal{}
 }
 
-func (UserDal) Create(user *da_models.User) *SErr.APIErr {
+func (UserDal) Create(user *daModels.User) *SErr.APIErr {
 	db := mysql.GetDB()
-	res := db.Where(&da_models.User{Name: user.Name}).FirstOrCreate(&user)
+	res := db.Where(&daModels.User{Name: user.Name}).FirstOrCreate(&user)
 	if res.Error != nil {
 		return SErr.InternalErr
 	}
 	if res.RowsAffected == 0 {
-		return SErr.BadRequestErr.CustomMessage("用户名已存在")
+		return SErr.InvalidParamErr.CustomMessage("用户名已存在")
 	}
 	return nil
 }
 
-func (UserDal) GetByID(userID int) (*da_models.User, *SErr.APIErr) {
+func (UserDal) GetByID(userID int) (*daModels.User, *SErr.APIErr) {
 	db := mysql.GetDB()
-	user := &da_models.User{
+	user := &daModels.User{
 		Model: gorm.Model{
 			ID: uint(userID),
 		},
@@ -44,10 +44,10 @@ func (UserDal) GetByID(userID int) (*da_models.User, *SErr.APIErr) {
 	return user, nil
 }
 
-func (UserDal) GetByName(name string) (*da_models.User, *SErr.APIErr) {
+func (UserDal) GetByName(name string) (*daModels.User, *SErr.APIErr) {
 	db := mysql.GetDB()
-	user := &da_models.User{}
-	res := db.Model(&da_models.User{}).Where("name = ?", name).First(user)
+	user := &daModels.User{}
+	res := db.Model(&daModels.User{}).Where("name = ?", name).First(user)
 	if res.Error != nil {
 		return nil, SErr.InternalErr
 	}
@@ -57,32 +57,32 @@ func (UserDal) GetByName(name string) (*da_models.User, *SErr.APIErr) {
 	return user, nil
 }
 
-func (UserDal) List(from, size int) ([]*da_models.User, int, *SErr.APIErr) {
+func (UserDal) List(from, size int) ([]*daModels.User, int, *SErr.APIErr) {
 	log.Printf("Users List, from=[%d], size=[%d]", from, size)
-	var users []*da_models.User
+	var users []*daModels.User
 	var count int64
 	db := mysql.GetDB()
-	res := db.Model(&da_models.User{}).Count(&count)
+	res := db.Model(&daModels.User{}).Count(&count)
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessage(res.Error.Error())
 	}
-	res = db.Model(&da_models.User{}).Offset(from).Limit(size).Find(&users)
+	res = db.Model(&daModels.User{}).Order("CreatedAt desc").Offset(from).Limit(size).Find(&users)
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessage(res.Error.Error())
 	}
 	return users, int(count), nil
 }
 
-func (UserDal) SearchByName(keyword string, from, size int) ([]*da_models.User, int, *SErr.APIErr) {
+func (UserDal) SearchByName(keyword string, from, size int) ([]*daModels.User, int, *SErr.APIErr) {
 	log.Printf("Users SearchByName, keyword=[%s], from=[%d], size=[%d]", keyword, from, size)
-	var users []*da_models.User
+	var users []*daModels.User
 	var count int64
 	db := mysql.GetDB()
-	res := db.Model(&da_models.User{}).Where("name LIKE ?", "%"+keyword+"%").Count(&count)
+	res := db.Model(&daModels.User{}).Where("name LIKE ?", "%"+keyword+"%").Order("CreatedAt desc").Count(&count)
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessage(res.Error.Error())
 	}
-	res = db.Model(&da_models.User{}).Where("name LIKE ?", "%"+keyword+"%").Offset(from).Limit(size).Find(&users)
+	res = db.Model(&daModels.User{}).Where("name LIKE ?", "%"+keyword+"%").Order("CreatedAt desc").Offset(from).Limit(size).Find(&users)
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessage(res.Error.Error())
 	}
@@ -92,7 +92,7 @@ func (UserDal) SearchByName(keyword string, from, size int) ([]*da_models.User, 
 func (UserDal) Count() (int64, *SErr.APIErr) {
 	var count int64
 	db := mysql.GetDB()
-	res := db.Model(&da_models.User{}).Count(&count)
+	res := db.Model(&daModels.User{}).Count(&count)
 	if res.Error != nil {
 		return 0, SErr.InternalErr.CustomMessage(res.Error.Error())
 	}
@@ -112,7 +112,7 @@ func (UserDal) Update(targetID int, updateReq *internal_models.UsersUpdateReques
 	//		omits = append(omits, k)
 	//	}
 	//}
-	res := db.Model(&da_models.User{}).Where("id = ?", targetID).Omit(omits...).Updates(updates)
+	res := db.Model(&daModels.User{}).Where("id = ?", targetID).Omit(omits...).Updates(updates)
 	if res.Error != nil {
 		return SErr.InternalErr.CustomMessage(res.Error.Error())
 	}

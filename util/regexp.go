@@ -7,3 +7,9 @@ func SplitLine(s string) []string {
 	lines := splitter.Split(s, -1)
 	return lines
 }
+
+func SplitSpaces(s string) []string {
+	splitter := regexp.MustCompile(`\s+`)
+	lines := splitter.Split(s, -1)
+	return lines
+}
