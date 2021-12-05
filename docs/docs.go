@@ -31,6 +31,193 @@ var doc = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/servers/": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "server"
+                ],
+                "summary": "查询多个server信息。",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "name": "from",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "name": "size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WithAccounts 加载账户信息的参数，为nil则不加载",
+                        "name": "with_accounts",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。",
+                        "name": "with_cmp_usages",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WithGPUUsages 指定是否加载GPU的使用信息。",
+                        "name": "with_gpu_usages",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WithHardwareInfo 指定是否加载硬件的元信息",
+                        "name": "with_hardware_info",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WithRemoteAccessUsages 指定是否加载正在远程登录这台服务器的用户信息。",
+                        "name": "with_remote_access_usages",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerInfosResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "server"
+                ],
+                "summary": "创建server。",
+                "parameters": [
+                    {
+                        "description": "serverCreateRequest",
+                        "name": "serverCreateRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerCreateResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "server"
+                ],
+                "summary": "删除server。",
+                "parameters": [
+                    {
+                        "description": "serverDeleteRequest",
+                        "name": "serverDeleteRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerDeleteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerDeleteResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/servers/{host}/{port}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "server"
+                ],
+                "summary": "查询server信息。",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "host",
+                        "name": "host",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "port",
+                        "name": "port",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WithAccounts 加载账户信息的参数，为nil则不加载",
+                        "name": "with_accounts",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。",
+                        "name": "with_cmp_usages",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WithGPUUsages 指定是否加载GPU的使用信息。",
+                        "name": "with_gpu_usages",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WithHardwareInfo 指定是否加载硬件的元信息",
+                        "name": "with_hardware_info",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WithRemoteAccessUsages 指定是否加载正在远程登录这台服务器的用户信息。",
+                        "name": "with_remote_access_usages",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerInfoResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/sessions/": {
             "get": {
                 "produces": [
@@ -44,7 +231,7 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api_models.SessionsCheckResponse"
+                            "$ref": "#/definitions/internal_models.SessionsCheckResponse"
                         }
                     }
                 }
@@ -60,11 +247,11 @@ var doc = `{
                 "parameters": [
                     {
                         "description": "createRequest",
-                        "name": "createRequest",
+                        "name": "sessionsCreateRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api_models.SessionsCreateRequest"
+                            "$ref": "#/definitions/internal_models.SessionsCreateRequest"
                         }
                     }
                 ],
@@ -72,7 +259,7 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api_models.SessionsCreateResponse"
+                            "$ref": "#/definitions/internal_models.SessionsCreateResponse"
                         }
                     }
                 }
@@ -88,11 +275,11 @@ var doc = `{
                 "parameters": [
                     {
                         "description": "destroyRequest",
-                        "name": "destroyRequest",
+                        "name": "sessionsDestroyRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api_models.SessionsDestroyRequest"
+                            "$ref": "#/definitions/internal_models.SessionsDestroyRequest"
                         }
                     }
                 ],
@@ -100,7 +287,7 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api_models.SessionsDestroyResponse"
+                            "$ref": "#/definitions/internal_models.SessionsDestroyResponse"
                         }
                     }
                 }
@@ -168,7 +355,7 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api_models.UsersInfosResponse"
+                            "$ref": "#/definitions/internal_models.UsersInfosResponse"
                         }
                     }
                 }
@@ -183,12 +370,12 @@ var doc = `{
                 "summary": "注册用户",
                 "parameters": [
                     {
-                        "description": "createRequest",
-                        "name": "createRequest",
+                        "description": "userCreateRequest",
+                        "name": "userCreateRequest",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api_models.UsersCreateRequest"
+                            "$ref": "#/definitions/internal_models.UsersCreateRequest"
                         }
                     }
                 ],
@@ -196,7 +383,7 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api_models.UsersCreateResponse"
+                            "$ref": "#/definitions/internal_models.UsersCreateResponse"
                         }
                     }
                 }
@@ -224,7 +411,7 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api_models.UsersInfoResponse"
+                            "$ref": "#/definitions/internal_models.UsersInfoResponse"
                         }
                     }
                 }
@@ -251,7 +438,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/api_models.UsersUpdateRequest"
+                            "$ref": "#/definitions/internal_models.UsersUpdateRequest"
                         }
                     }
                 ],
@@ -259,7 +446,7 @@ var doc = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/api_models.UsersUpdateResponse"
+                            "$ref": "#/definitions/internal_models.UsersUpdateResponse"
                         }
                     }
                 }
@@ -267,7 +454,392 @@ var doc = `{
         }
     },
     "definitions": {
-        "api_models.SessionsCheckResponse": {
+        "gorm.DeletedAt": {
+            "type": "object",
+            "properties": {
+                "time": {
+                    "type": "string"
+                },
+                "valid": {
+                    "description": "Valid is true if Time is not NULL",
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_models.Account": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "gid": {
+                    "type": "integer"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "not_exists_in_server": {
+                    "type": "boolean"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "pwd": {
+                    "type": "string"
+                },
+                "server": {
+                    "$ref": "#/definitions/internal_models.ServerBasic"
+                },
+                "uid": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerAccountInfos": {
+            "type": "object",
+            "properties": {
+                "accounts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_models.Account"
+                    }
+                },
+                "failed_info": {
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "output": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerBasic": {
+            "type": "object",
+            "properties": {
+                "admin_account_name": {
+                    "type": "string"
+                },
+                "admin_account_pwd": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deleted_at": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "os_type": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerCPUHardwareInfo": {
+            "type": "object",
+            "properties": {
+                "cpuhardwareInfo": {
+                    "$ref": "#/definitions/internal_models.ServerCPUs"
+                },
+                "failed_info": {
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "output": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerCPUMemProcessesUsageInfo": {
+            "type": "object",
+            "properties": {
+                "cpumemUsage": {
+                    "description": "CPUMemUsage 服务器总的CPU，内存使用率。",
+                    "$ref": "#/definitions/internal_models.ServerCPUMemUsage"
+                },
+                "failed_info": {
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "output": {
+                    "type": "string"
+                },
+                "process_infos": {
+                    "description": "ProcessInfos 全部进程信息。",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_models.ServerProcessInfo"
+                    }
+                }
+            }
+        },
+        "internal_models.ServerCPUMemUsage": {
+            "type": "object",
+            "properties": {
+                "mem_usage": {
+                    "description": "MemUsage 总内存使用（比例：如3600MB/8000MB）",
+                    "type": "string"
+                },
+                "user_cpu_usage": {
+                    "description": "UserProcCPUUsage 记录用户进程的CPU使用率。（总比例）",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerCPUs": {
+            "type": "object",
+            "properties": {
+                "architecture": {
+                    "description": "Architecture 架构",
+                    "type": "string"
+                },
+                "cores": {
+                    "description": "Cores CPU核数",
+                    "type": "integer"
+                },
+                "model_name": {
+                    "description": "ModelName 如：Intel(R) Xeon(R) CPU E5-2682 v4 @ 2.50GHz",
+                    "type": "string"
+                },
+                "threads_per_core": {
+                    "description": "ThreadsPerCore 每个核心可以跑几个线程",
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_models.ServerCreateRequest": {
+            "type": "object",
+            "properties": {
+                "admin_account_name": {
+                    "type": "string"
+                },
+                "admin_account_pwd": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "os_type": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_models.ServerCreateResponse": {
+            "type": "object"
+        },
+        "internal_models.ServerDeleteRequest": {
+            "type": "object",
+            "properties": {
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_models.ServerDeleteResponse": {
+            "type": "object"
+        },
+        "internal_models.ServerGPU": {
+            "type": "object",
+            "properties": {
+                "product": {
+                    "description": "Product 产品名。",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerGPUHardwareInfos": {
+            "type": "object",
+            "properties": {
+                "failed_info": {
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "gpu_infos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_models.ServerGPU"
+                    }
+                },
+                "output": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerGPUUsageInfo": {
+            "type": "object",
+            "properties": {
+                "failed_info": {
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "output": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerHardwareInfo": {
+            "type": "object",
+            "properties": {
+                "cpu_hardware_info": {
+                    "$ref": "#/definitions/internal_models.ServerCPUHardwareInfo"
+                },
+                "failed_info": {
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "gpu_hardware_infos": {
+                    "$ref": "#/definitions/internal_models.ServerGPUHardwareInfos"
+                },
+                "output": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerInfo": {
+            "type": "object",
+            "properties": {
+                "access_failed_info": {
+                    "description": "AccessFailedInfo 指定了当该服务器连接失败时的信息。如果该字段不为空，那么其他字段才有意义。",
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "account_infos": {
+                    "description": "AccountInfos 记录服务器账户信息。",
+                    "$ref": "#/definitions/internal_models.ServerAccountInfos"
+                },
+                "basic": {
+                    "description": "Basic 基本的Server目录信息",
+                    "$ref": "#/definitions/internal_models.ServerBasic"
+                },
+                "cpu_mem_processes_usage_info": {
+                    "description": "CPUMemProcessesUsageInfo CPU，内存，进程的使用资源信息。（Top指令）",
+                    "$ref": "#/definitions/internal_models.ServerCPUMemProcessesUsageInfo"
+                },
+                "hardware_info": {
+                    "description": "ServerHardwareInfo 硬件元信息",
+                    "$ref": "#/definitions/internal_models.ServerHardwareInfo"
+                },
+                "remote_accessing_usage_info": {
+                    "description": "RemoteAccessingUsageInfo 正在从远端访问的用户的使用信息",
+                    "$ref": "#/definitions/internal_models.ServerRemoteAccessingUsagesInfo"
+                },
+                "server_gpu_usage_info": {
+                    "description": "GPUUsageInfo 当前该Server总的GPU利用率信息。（当前为string，具体待定）",
+                    "$ref": "#/definitions/internal_models.ServerGPUUsageInfo"
+                }
+            }
+        },
+        "internal_models.ServerInfoLoadingFailedInfo": {
+            "type": "object",
+            "properties": {
+                "causeDescription": {
+                    "description": "描述具体原因。",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerInfoResponse": {
+            "type": "object",
+            "properties": {
+                "serverInfo": {
+                    "$ref": "#/definitions/internal_models.ServerInfo"
+                }
+            }
+        },
+        "internal_models.ServerInfosResponse": {
+            "type": "object",
+            "properties": {
+                "serverInfos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_models.ServerInfo"
+                    }
+                },
+                "totalCount": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_models.ServerProcessInfo": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "description": "Command 命令",
+                    "type": "string"
+                },
+                "cpu_usage": {
+                    "description": "CPU利用率。",
+                    "type": "string"
+                },
+                "failed_info": {
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "gpu_usage": {
+                    "description": "GPU利用率（不一定能查到）",
+                    "type": "string"
+                },
+                "mem_usage": {
+                    "description": "内存利用率",
+                    "type": "string"
+                },
+                "output": {
+                    "type": "string"
+                },
+                "owner_account_name": {
+                    "description": "OwnerAccountName 该进程由哪个用户启动。",
+                    "type": "string"
+                },
+                "pid": {
+                    "description": "PID 进程号。",
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_models.ServerRemoteAccessingAccountInfo": {
+            "type": "object",
+            "properties": {
+                "account_name": {
+                    "type": "string"
+                },
+                "what": {
+                    "description": "What 表示该远程访问的用户正在执行的命令。",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerRemoteAccessingUsagesInfo": {
+            "type": "object",
+            "properties": {
+                "failed_info": {
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "output": {
+                    "type": "string"
+                },
+                "remote_accessing_account_infos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_models.ServerRemoteAccessingAccountInfo"
+                    }
+                }
+            }
+        },
+        "internal_models.SessionsCheckResponse": {
             "type": "object",
             "properties": {
                 "userID": {
@@ -275,7 +847,7 @@ var doc = `{
                 }
             }
         },
-        "api_models.SessionsCreateRequest": {
+        "internal_models.SessionsCreateRequest": {
             "type": "object",
             "properties": {
                 "name": {
@@ -286,53 +858,16 @@ var doc = `{
                 }
             }
         },
-        "api_models.SessionsCreateResponse": {
+        "internal_models.SessionsCreateResponse": {
             "type": "object"
         },
-        "api_models.SessionsDestroyRequest": {
+        "internal_models.SessionsDestroyRequest": {
             "type": "object"
         },
-        "api_models.SessionsDestroyResponse": {
+        "internal_models.SessionsDestroyResponse": {
             "type": "object"
         },
-        "api_models.User": {
-            "type": "object",
-            "properties": {
-                "admin": {
-                    "type": "boolean"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "pwd": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "api_models.UsersCreateRequest": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "pwd": {
-                    "type": "string"
-                }
-            }
-        },
-        "api_models.UsersCreateResponse": {
-            "type": "object"
-        },
-        "api_models.UsersInfoResponse": {
+        "internal_models.User": {
             "type": "object",
             "properties": {
                 "admin": {
@@ -355,13 +890,50 @@ var doc = `{
                 }
             }
         },
-        "api_models.UsersInfosResponse": {
+        "internal_models.UsersCreateRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "pwd": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.UsersCreateResponse": {
+            "type": "object"
+        },
+        "internal_models.UsersInfoResponse": {
+            "type": "object",
+            "properties": {
+                "admin": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pwd": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.UsersInfosResponse": {
             "type": "object",
             "properties": {
                 "infos": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/api_models.User"
+                        "$ref": "#/definitions/internal_models.User"
                     }
                 },
                 "total_count": {
@@ -369,7 +941,7 @@ var doc = `{
                 }
             }
         },
-        "api_models.UsersUpdateRequest": {
+        "internal_models.UsersUpdateRequest": {
             "type": "object",
             "properties": {
                 "admin": {
@@ -383,7 +955,7 @@ var doc = `{
                 }
             }
         },
-        "api_models.UsersUpdateResponse": {
+        "internal_models.UsersUpdateResponse": {
             "type": "object"
         }
     }
@@ -404,8 +976,8 @@ var SwaggerInfo = swaggerInfo{
 	Host:        "",
 	BasePath:    "",
 	Schemes:     []string{},
-	Title:       "SoftwareWarehouse Web API",
-	Description: "This is a SoftwareWarehouse API server.",
+	Title:       "ServerServing Web API",
+	Description: "This is a ServerServing API server.",
 }
 
 type s struct{}

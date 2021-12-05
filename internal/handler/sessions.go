@@ -19,8 +19,8 @@ func GetSessionsHandler() *SessionsHandler {
 // @Tags session
 // @Produce json
 // @Router /api/v1/sessions/ [post]
-// @Param createRequest body api_models.SessionsCreateRequest true "createRequest"
-// @Success 200 {object} api_models.SessionsCreateResponse
+// @Param sessionsCreateRequest body internal_models.SessionsCreateRequest true "createRequest"
+// @Success 200 {object} internal_models.SessionsCreateResponse
 func (SessionsHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
 	req := &models.SessionsCreateRequest{}
 	err := c.ShouldBind(req)
@@ -39,8 +39,8 @@ func (SessionsHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.API
 // @Tags session
 // @Produce json
 // @Router /api/v1/sessions/ [delete]
-// @Param destroyRequest body api_models.SessionsDestroyRequest true "destroyRequest"
-// @Success 200 {object} api_models.SessionsDestroyResponse
+// @Param sessionsDestroyRequest body internal_models.SessionsDestroyRequest true "destroyRequest"
+// @Success 200 {object} internal_models.SessionsDestroyResponse
 func (SessionsHandler) Destroy(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
 	service.GetSessionsService().Destroy(c)
 	return format.SimpleOKResp(&models.SessionsDestroyResponse{}), nil
@@ -51,12 +51,9 @@ func (SessionsHandler) Destroy(c *gin.Context) (*format.JSONRespFormat, *SErr.AP
 // @Tags session
 // @Produce json
 // @Router /api/v1/sessions/ [get]
-// @Success 200 {object} api_models.SessionsCheckResponse
+// @Success 200 {object} internal_models.SessionsCheckResponse
 func (SessionsHandler) Check(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
-	userID, sErr := service.GetSessionsService().GetUserID(c)
-	if sErr != nil {
-		return nil, sErr
-	}
+	userID, _ := service.GetSessionsService().GetUserID(c)
 	return format.SimpleOKResp(&models.SessionsCheckResponse{
 		UserID: userID,
 	}), nil

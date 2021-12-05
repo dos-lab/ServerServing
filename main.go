@@ -6,6 +6,7 @@ import (
 	"ServerServing/da/mysql"
 	_ "ServerServing/docs"
 	"ServerServing/middlewares"
+	_ "database/sql"
 	"fmt"
 	"github.com/gin-gonic/gin"
 )

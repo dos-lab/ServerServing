@@ -16,6 +16,7 @@ func Register(r *gin.Engine) {
 	testRouter := rg.Group(prefixTest)
 	usersRouter := rg.Group(prefixUser)
 	sessionsRouter := rg.Group(prefixSession)
+	serversRouter := rg.Group(prefixServer)
 
 	testAPI := testAPI{}
 	testRouter.GET("error_handler", format.Wrap(testAPI.testErrorHandler()))
@@ -31,12 +32,19 @@ func Register(r *gin.Engine) {
 	sessionsRouter.POST("", format.Wrap(sessionsAPI.create()))
 	sessionsRouter.DELETE("", format.Wrap(sessionsAPI.destroy()))
 	sessionsRouter.GET("", format.Wrap(sessionsAPI.check()))
+
+	serversAPI := serversAPI{}
+	serversRouter.POST("", format.Wrap(serversAPI.create()))
+	serversRouter.DELETE("", format.Wrap(serversAPI.delete()))
+	serversRouter.GET(":host/:port", format.Wrap(serversAPI.info()))
+	serversRouter.GET("", format.Wrap(serversAPI.infos()))
 }
 
 const (
 	prefixTest    = "test"
 	prefixUser    = "users"
 	prefixSession = "sessions"
+	prefixServer = "servers"
 )
 
 //type sourceCodeAPI struct{}
@@ -98,6 +106,33 @@ func (sessionsAPI) check() format.JSONHandler {
 		return handler.GetSessionsHandler().Check(c)
 	}
 }
+
+type serversAPI struct {}
+
+func (serversAPI) create() format.JSONHandler {
+	return func(c *gin.Context) (*format.JSONRespFormat, *err.APIErr) {
+		return handler.GetServerHandler().Create(c)
+	}
+}
+
+func (serversAPI) delete() format.JSONHandler {
+	return func(c *gin.Context) (*format.JSONRespFormat, *err.APIErr) {
+		return handler.GetServerHandler().Delete(c)
+	}
+}
+
+func (serversAPI) info() format.JSONHandler {
+	return func(c *gin.Context) (*format.JSONRespFormat, *err.APIErr) {
+		return handler.GetServerHandler().Info(c)
+	}
+}
+
+func (serversAPI) infos() format.JSONHandler {
+	return func(c *gin.Context) (*format.JSONRespFormat, *err.APIErr) {
+		return handler.GetServerHandler().Infos(c)
+	}
+}
+
 
 type testAPI struct{}
 

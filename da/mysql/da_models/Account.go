@@ -14,11 +14,11 @@ type Account struct {
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 
-	Name  string `gorm:"primaryKey;size:50"`
-	Pwd   string `gorm:"size:50"`
+	Name string `gorm:"primaryKey;index:idx_accounts_host_port_name,priority:3;size:50"`
+	Pwd  string `gorm:"size:50"`
 
-	Host string `gorm:"primaryKey;not null;size:20"`
-	Port uint `gorm:"primaryKey;not null"`
+	Host string `gorm:"primaryKey;index:idx_accounts_host_port_name,priority:1;not null;size:20"`
+	Port uint   `gorm:"primaryKey;index:idx_accounts_host_port_name,priority:2;not null"`
 
 	Server Server `gorm:"foreignKey:Host,Port"`
 }

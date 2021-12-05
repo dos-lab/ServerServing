@@ -2,6 +2,7 @@ package service
 
 import (
 	"ServerServing/config"
+	daModels "ServerServing/da/mysql/da_models"
 	SErr "ServerServing/err"
 	"ServerServing/internal/internal_models"
 	"ServerServing/util"
@@ -28,6 +29,15 @@ const (
 	Ubuntu  LinuxOSType = "ubuntu"
 	CentOS  LinuxOSType = "centos"
 )
+
+func GetExecutorService(Host string, Port uint, osType daModels.OSType, adminAccountName, adminAccountPwd string) (ExecutorService, *SErr.APIErr) {
+	switch osType {
+	case daModels.OSTypeLinux:
+		return GetLinuxSSHExecutorService(Host, Port, adminAccountName, adminAccountPwd)
+	default:
+		panic("Unimplemented")
+	}
+}
 
 // use loadCmdScript to load a file-base command or script
 var loadCmdScript = func() func(path, name string) (string, *SErr.APIErr) {
@@ -73,14 +83,24 @@ type ExecutorService interface {
 	Mkdir(dirPath string) (*ExecutorServiceVoidResp, *SErr.APIErr)
 	MkdirIfNotExists(dirPath string) (*ExecutorServiceVoidResp, *SErr.APIErr)
 
-	Top() (*ExecutorServiceTopResp, *SErr.APIErr)
+	GetCPUMemProcessesUsages() (*ExecutorServiceCPUMemProcessesUsagesResp, *SErr.APIErr)
+	GetGPUUsages() (*ExecutorServiceVoidResp, *SErr.APIErr)
 
 	AddAccount(accountName, pwd string) (*ExecutorServiceVoidResp, *SErr.APIErr)
 	DeleteAccount(accountName string) (*ExecutorServiceVoidResp, *SErr.APIErr)
 	GetAccountList() (*ExecutorServiceGetAccountListResp, *SErr.APIErr)
+	GetBackupDir(accountName string) (*ExecutorServiceGetBackupDirResp, *SErr.APIErr)
 	BackupAccountHomeDir(accountName string) (*ExecutorServiceBackupAccountResp, *SErr.APIErr)
 	RecoverAccountHomeDir(accountName string, force bool) (*ExecutorServiceRecoverAccountResp, *SErr.APIErr)
 	GetAccountHomeDir(accountName string) (*ExecutorServiceGetAccountHomeDirResp, *SErr.APIErr)
+
+
+	GetGPUHardware() (*ExecutorServiceGPUHardwareResp, *SErr.APIErr)
+	GetCPUHardware() (*ExecutorServiceCPUHardwareResp, *SErr.APIErr)
+	GetMemoryHardware() (*ExecutorServiceMemoryHardwareResp, *SErr.APIErr)
+
+	GetRemoteAccessInfos() (*ExecutorServiceRemoteAccessResp, *SErr.APIErr)
+
 	String() string
 }
 
@@ -117,11 +137,39 @@ type ExecutorServiceGetAccountListResp struct {
 	Accounts []*internal_models.Account
 }
 
-type ExecutorServiceTopResp struct {
+type ExecutorServiceCPUMemProcessesUsagesResp struct {
 	ExecutorServiceRespCommon
-	CPUMemUsage *internal_models.ServerCPUMemUsage
+	CPUMemUsage  *internal_models.ServerCPUMemUsage
 	ProcessInfos []*internal_models.ServerProcessInfo
 }
+
+type ExecutorServiceCPUHardwareResp struct {
+	ExecutorServiceRespCommon
+	CPU *internal_models.ServerCPUs
+}
+
+type ExecutorServiceGPUHardwareResp struct {
+	ExecutorServiceRespCommon
+	GPUs []*internal_models.ServerGPU
+}
+
+type ExecutorServiceMemoryHardwareResp struct {
+	ExecutorServiceRespCommon
+	MemoryStats *internal_models.ServerMemory
+}
+
+type ExecutorServiceRemoteAccessResp struct {
+	ExecutorServiceRespCommon
+	RemoteAccessingAccountInfos []*internal_models.ServerRemoteAccessingAccountInfo
+}
+
+type ExecutorServiceGetBackupDirResp struct {
+	ExecutorServiceRespCommon
+	BackupDir string
+	PathExists bool
+	DirExists bool
+}
+
 
 // GetLinuxSSHExecutorService
 // 获取一个到某服务器的SSH Executor服务实例。建立新的ssh连接。在一次http请求中复用这个服务可以减少连接的创建数量。
@@ -163,8 +211,8 @@ type LinuxSSHExecutorServiceCommon struct {
 	Account string
 	Pwd     string
 
-	OSType  LinuxOSType
-	SSHConn *LinuxSSHConnection
+	OSType     LinuxOSType
+	SSHConn    *LinuxSSHConnection
 	commonPath string
 	ubuntuPath string
 	centosPath string
@@ -175,7 +223,7 @@ type LinuxSSHExecutorServiceCommon struct {
 func NewLinuxSSHExecutorServiceCommon(osType LinuxOSType, Account string, Pwd string, SSHConn *LinuxSSHConnection) *LinuxSSHExecutorServiceCommon {
 	csp := config.GetConfig().CmdsScriptsPath
 	ubuntu := path.Join(csp, "ubuntu")
-	common := path.Join(csp, "common")
+	common := path.Join(csp, "linux_common")
 	centos := path.Join(csp, "centos")
 	return &LinuxSSHExecutorServiceCommon{
 		Account:       Account,
@@ -307,7 +355,6 @@ func (s *LinuxSSHExecutorServiceCommon) PathExists(path string) (*ExecutorServic
 	}
 }
 
-
 // Mkdir 创建文件夹，不检查文件夹是否存在。
 func (s *LinuxSSHExecutorServiceCommon) Mkdir(path string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
 	resp := &ExecutorServiceVoidResp{}
@@ -341,8 +388,8 @@ func (s *LinuxSSHExecutorServiceCommon) MkdirIfNotExists(dirPath string) (*Execu
 	return resp, nil
 }
 
-// Top 获取CPU，Mem占用，以及Process占用的信息。
-func (s *LinuxSSHExecutorServiceCommon) Top() (*ExecutorServiceTopResp, *SErr.APIErr) {
+// GetCPUMemProcessesUsages 获取CPU，Mem占用，以及Process占用的信息。
+func (s *LinuxSSHExecutorServiceCommon) GetCPUMemProcessesUsages() (*ExecutorServiceCPUMemProcessesUsagesResp, *SErr.APIErr) {
 	// top - 08:32:57 up 12 days,  5:24,  5 users,  load average: 1.86, 2.28, 2.49
 	// Tasks: 620 total,   1 running, 471 sleeping,   0 stopped,   0 zombie
 	// %Cpu(s): 11.1 us,  3.8 sy,  0.9 ni, 83.0 id,  0.1 wa,  0.0 hi,  1.0 si,  0.0 st
@@ -361,7 +408,7 @@ func (s *LinuxSSHExecutorServiceCommon) Top() (*ExecutorServiceTopResp, *SErr.AP
 	// 17364 1337      20   0  199440  55632  29568 S   5.6  0.0  38:23.58 envoy
 	// 22228 1337      20   0  199444  55848  29520 S   5.6  0.0  38:58.67 envoy
 	//     1 root      20   0   80592  11652   6588 S   0.0  0.0  92:23.60 systemd
-	resp := &ExecutorServiceTopResp{}
+	resp := &ExecutorServiceCPUMemProcessesUsagesResp{}
 	cmd, err := loadCmdScript(s.commonPath, "top")
 	if err != nil {
 		return resp, err
@@ -374,12 +421,12 @@ func (s *LinuxSSHExecutorServiceCommon) Top() (*ExecutorServiceTopResp, *SErr.AP
 
 	resp.ProcessInfos = make([]*internal_models.ServerProcessInfo, 0)
 	resp.CPUMemUsage = &internal_models.ServerCPUMemUsage{
-		UserProcCPUUsage: "",
-		MemUsage:         "",
+		UserProcCPUUsage: nil,
+		MemUsage:         nil,
 	}
 	lines := util.SplitLine(output)
 	matchCPU := func(line string) {
-		if resp.CPUMemUsage.UserProcCPUUsage != "" {
+		if resp.CPUMemUsage.UserProcCPUUsage != nil {
 			return
 		}
 		reg := regexp.MustCompile(`^.*Cpu\(s\):\s+([0-9.]+) us.*$`)
@@ -387,16 +434,17 @@ func (s *LinuxSSHExecutorServiceCommon) Top() (*ExecutorServiceTopResp, *SErr.AP
 		if len(m) < 2 {
 			return
 		}
-		log.Printf("LinuxSSHExecutorServiceCommon Top matchCPU=[%+v]", util.Pretty(m))
+		log.Printf("LinuxSSHExecutorServiceCommon GetCPUMemProcessesUsages matchCPU=[%+v]", util.Pretty(m))
 		f, err := strconv.ParseFloat(m[1], 64)
 		if err != nil {
-			log.Printf("LinuxSSHExecutorServiceCommon Top matchCPU=[%+v], parseFloat failed, err=[%+v]", util.Pretty(m), err)
+			log.Printf("LinuxSSHExecutorServiceCommon GetCPUMemProcessesUsages matchCPU=[%+v], parseFloat failed, err=[%+v]", util.Pretty(m), err)
 			return
 		}
-		resp.CPUMemUsage.UserProcCPUUsage = fmt.Sprintf("%.2f%%", 100*f)
+		usage := fmt.Sprintf("%.2f%%", f)
+		resp.CPUMemUsage.UserProcCPUUsage = &usage
 	}
 	matchMem := func(line string) {
-		if resp.CPUMemUsage.MemUsage != "" {
+		if resp.CPUMemUsage.MemUsage != nil {
 			return
 		}
 		reg := regexp.MustCompile(`^.*Mem.*:.*,\s+([0-9]+) free,\s+([0-9]+) used,\s+([0-9]+) buff/cache.*$`)
@@ -404,15 +452,16 @@ func (s *LinuxSSHExecutorServiceCommon) Top() (*ExecutorServiceTopResp, *SErr.AP
 		if len(m) < 4 {
 			return
 		}
-		log.Printf("LinuxSSHExecutorServiceCommon Top matchMem=[%+v]", util.Pretty(m))
+		log.Printf("LinuxSSHExecutorServiceCommon GetCPUMemProcessesUsages matchMem=[%+v]", util.Pretty(m))
 		free, _ := util.ParseInt(m[1])
 		used, _ := util.ParseInt(m[2])
 		buff, _ := util.ParseInt(m[3])
 		if free == 0 || used == 0 || buff == 0 {
-			log.Printf("LinuxSSHExecutorServiceCommon Top matchMem=[%+v], parseInt return 0", m)
+			log.Printf("LinuxSSHExecutorServiceCommon GetCPUMemProcessesUsages matchMem=[%+v], parseInt return 0", m)
 			return
 		}
-		resp.CPUMemUsage.MemUsage = fmt.Sprintf("%.2f%%", 100*float64(used) / float64(free + used + buff))
+		usage := fmt.Sprintf("%.2f%%", 100*float64(used)/float64(free+used+buff))
+		resp.CPUMemUsage.MemUsage = &usage
 	}
 	matchProcLine := func(line string) {
 		line = strings.TrimSpace(line)
@@ -426,10 +475,11 @@ func (s *LinuxSSHExecutorServiceCommon) Top() (*ExecutorServiceTopResp, *SErr.AP
 		}
 		// 228 root      19  -1  174840  69976  58876 S  0.0  3.4   0:19.95 systemd-journal
 		pidStr := splits[0]
-		pid, err := util.ParseInt(pidStr)
+		pidInt, err := util.ParseInt(pidStr)
 		if err != nil {
 			return
 		}
+		pid := uint(pidInt)
 		user := splits[1]
 		cpuUsage := splits[8]
 		cpuUsageF, err := strconv.ParseFloat(cpuUsage, 64)
@@ -439,24 +489,16 @@ func (s *LinuxSSHExecutorServiceCommon) Top() (*ExecutorServiceTopResp, *SErr.AP
 		memUsage := splits[9]
 		memUsageF, err := strconv.ParseFloat(memUsage, 64)
 		command := splits[11]
+		cpuUsageStr := fmt.Sprintf("%.2f%%", cpuUsageF)
+		gpuUsageStr := fmt.Sprintf("%.2f%%", memUsageF)
 		resp.ProcessInfos = append(resp.ProcessInfos, &internal_models.ServerProcessInfo{
-			PID:              uint(pid),
-			Command:          command,
-			OwnerAccountName: user,
-			CPUUsage:         fmt.Sprintf("%.2f%%", cpuUsageF),
-			MemUsage:         fmt.Sprintf("%.2f%%", memUsageF),
-			GPUUsage:         "", // TODO
+			PID:              &pid,
+			Command:          &command,
+			OwnerAccountName: &user,
+			CPUUsage:         &cpuUsageStr,
+			MemUsage:         &gpuUsageStr,
+			GPUUsage:         nil, // TODO
 		})
-		// reg := regexp.MustCompile(`^([0-9]+)\s+([a-zA-z_]+)\s+[0-9]+\s+[0-9]+\s+[0-9]+\s+[0-9]+\s+[0-9]+\s+\w+\s+([0-9.]+)\s+([0-9.]+)\s+[0-9:.]+\s+(\w+)$`)
-		// m := reg.FindStringSubmatch(line)
-		//if len(m) < 6 {
-		//	if len(resp.ProcessInfos) > 0 {
-		//		// 如果已经开始分析Proc行的数据了，但是却没有匹配成功，则改行数据可能出现匹配问题，打log看看
-		//		log.Printf("出现Proc行后，但是匹配失败的：line=[%s]", line)
-		//	}
-		//	return
-		//}
-
 	}
 	for _, line := range lines {
 		if len(line) == 0 {
@@ -470,16 +512,204 @@ func (s *LinuxSSHExecutorServiceCommon) Top() (*ExecutorServiceTopResp, *SErr.AP
 	return resp, nil
 }
 
-// getBackupDir 获取备份文件夹路径。目前，就简单备份到/backup目录下，如果不存在则创建。
-func (s *LinuxSSHExecutorServiceCommon) getBackupDir(homeDir string) (string, string, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceCommon) GetCPUHardware() (*ExecutorServiceCPUHardwareResp, *SErr.APIErr) {
+	// Architecture:        x86_64
+	// CPU op-mode(s):      32-bit, 64-bit
+	// Byte Order:          Little Endian
+	// CPU(s):              1
+	// On-line CPU(s) list: 0
+	// Thread(s) per core:  1
+	// Core(s) per socket:  1
+	// Socket(s):           1
+	// NUMA node(s):        1
+	// Vendor ID:           GenuineIntel
+	// CPU family:          6
+	// Model:               79
+	// Model name:          Intel(R) Xeon(R) CPU E5-2682 v4 @ 2.50GHz
+	// Stepping:            1
+	// CPU MHz:             2499.996
+	// BogoMIPS:            4999.99
+	// Hypervisor vendor:   KVM
+	// Virtualization type: full
+	// L1d cache:           32K
+	// L1i cache:           32K
+	// L2 cache:            256K
+	// L3 cache:            40960K
+	// NUMA node0 CPU(s):   0
+	resp := &ExecutorServiceCPUHardwareResp{}
+	cmd, err := loadCmdScript(s.commonPath, "lscpu")
+	if err != nil {
+		return resp, err
+	}
+	output, err := s.SSHConn.SendCommands(cmd)
+	resp.Output = output
+	if err != nil {
+		return resp, err
+	}
+	resp.CPU = &internal_models.ServerCPUs{}
+	lines := util.SplitLine(output)
+	matchArch := func(line string) {
+		if resp.CPU.Architecture != nil {
+			return
+		}
+		line = strings.TrimSpace(line)
+		reg := regexp.MustCompile(`^Architecture:\s+([^\s]+)$`)
+		m := reg.FindStringSubmatch(line)
+		if len(m) < 2 {
+			return
+		}
+		log.Printf("LinuxSSHExecutorServiceCommon GetCPUHardware matchArch, line=[%s], m=[%+v]", line, m)
+		resp.CPU.Architecture = &m[1]
+	}
+	matchCores := func(line string) {
+		if resp.CPU.Cores != nil {
+			return
+		}
+		line = strings.TrimSpace(line)
+		reg := regexp.MustCompile(`^CPU\(s\):\s+([^\s]+)$`)
+		m := reg.FindStringSubmatch(line)
+		if len(m) < 2 {
+			return
+		}
+		log.Printf("LinuxSSHExecutorServiceCommon GetCPUHardware matchCores, line=[%s], m=[%+v]", line, m)
+		cores, err := util.ParseInt(m[1])
+		if err != nil {
+			return
+		}
+		resp.CPU.Cores = &cores
+	}
+	matchThreadsPerCore := func(line string) {
+		if resp.CPU.ThreadsPerCore != nil {
+			return
+		}
+		line = strings.TrimSpace(line)
+		reg := regexp.MustCompile(`^Thread\(s\) per core:\s+([^\s]+)$`)
+		m := reg.FindStringSubmatch(line)
+		if len(m) < 2 {
+			return
+		}
+		log.Printf("LinuxSSHExecutorServiceCommon GetCPUHardware matchThreadsPerCore, line=[%s], m=[%+v]", line, m)
+		threadsPerCore, err := util.ParseInt(m[1])
+		if err != nil {
+			return
+		}
+		resp.CPU.ThreadsPerCore = &threadsPerCore
+	}
+	matchModelName := func(line string) {
+		if resp.CPU.ModelName != nil {
+			return
+		}
+		line = strings.TrimSpace(line)
+		reg := regexp.MustCompile(`^Model name:\s+(.*)$`)
+		m := reg.FindStringSubmatch(line)
+		if len(m) < 2 {
+			return
+		}
+		log.Printf("LinuxSSHExecutorServiceCommon GetCPUHardware matchModelName, line=[%s], m=[%+v]", line, m)
+		resp.CPU.ModelName = &m[1]
+	}
+	matchers := []func(line string){
+		matchArch,
+		matchCores,
+		matchThreadsPerCore,
+		matchModelName,
+	}
+	for _, line := range lines {
+		for _, matcher := range matchers {
+			matcher(line)
+		}
+	}
+	return resp, nil
+}
+
+func (s *LinuxSSHExecutorServiceCommon) GetGPUHardware() (*ExecutorServiceGPUHardwareResp, *SErr.APIErr) {
+	// 17:00.0 VGA compatible controller: NVIDIA Corporation GV102 (rev a1)
+	// b3:00.0 VGA compatible controller: NVIDIA Corporation GV102 (rev a1)
+	resp := &ExecutorServiceGPUHardwareResp{}
+	cmd, err := loadCmdScript(s.commonPath, "lsgpu")
+	if err != nil {
+		return resp, err
+	}
+	output, err := s.SSHConn.SendCommands(cmd)
+	resp.Output = output
+	if err != nil {
+		return resp, err
+	}
+	resp.GPUs = make([]*internal_models.ServerGPU, 0)
+	lines := util.SplitLine(output)
+	matchVGA := func(line string) {
+		line = strings.TrimSpace(line)
+		reg := regexp.MustCompile(`^.*VGA.*controller: (.*)$`)
+		m := reg.FindStringSubmatch(line)
+		if len(m) < 2 {
+			return
+		}
+		log.Printf("LinuxSSHExecutorServiceCommon GetGPUHardware matchVGA, line=[%s], m=[%+v]", line, m)
+		resp.GPUs = append(resp.GPUs, &internal_models.ServerGPU{
+			Product: &m[1],
+		})
+	}
+	for _, line := range lines {
+		matchVGA(line)
+	}
+
+	return resp, nil
+}
+
+func (s *LinuxSSHExecutorServiceCommon) GetMemoryHardware() (*ExecutorServiceMemoryHardwareResp, *SErr.APIErr) {
+	resp := &ExecutorServiceMemoryHardwareResp{}
+	cmd, err := loadCmdScript(s.commonPath, "meminfo")
+	if err != nil {
+		return resp, err
+	}
+	output, err := s.SSHConn.SendCommands(cmd)
+	resp.Output = output
+	if err != nil {
+		return resp, err
+	}
+	resp.MemoryStats = &internal_models.ServerMemory{}
+	matchTotalMemory := func(line string) {
+		if resp.MemoryStats.TotalMemory != nil {
+			return
+		}
+		line = strings.TrimSpace(line)
+		reg := regexp.MustCompile(`^MemTotal:\s+(.*)$`)
+		m := reg.FindStringSubmatch(line)
+		if len(m) < 2 {
+			return
+		}
+		resp.MemoryStats.TotalMemory = &m[1]
+	}
+	lines := util.SplitLine(output)
+	for _, line := range lines {
+		matchTotalMemory(line)
+	}
+	return resp, nil
+}
+
+// GetBackupDir 获取备份文件夹路径。目前，就简单备份到/backup目录下，如果不存在则创建。
+func (s *LinuxSSHExecutorServiceCommon) GetBackupDir(accountName string) (*ExecutorServiceGetBackupDirResp, *SErr.APIErr) {
+	resp := &ExecutorServiceGetBackupDirResp{}
 	backupDirPath := "/backup"
 	mkdirResp, err := s.MkdirIfNotExists(backupDirPath)
+	resp.Output = mkdirResp.Output
 	if err != nil {
-		return mkdirResp.Output, "", err
+		return resp, err
 	}
-	dirElem := path.Base(homeDir)
-	targetDirElem := fmt.Sprintf("%s.backup", dirElem)
-	return mkdirResp.Output, path.Join(backupDirPath, targetDirElem), nil
+	targetDirElem := fmt.Sprintf("%s.backup", accountName)
+	targetDir := path.Join(backupDirPath, targetDirElem)
+	dirExists, err := s.DirExists(targetDir)
+	if err != nil {
+		return resp, err
+	}
+	pathExists, err := s.PathExists(targetDir)
+	if err != nil {
+		return resp, err
+	}
+	resp.PathExists = pathExists.Exists
+	resp.DirExists = dirExists.Exists
+	resp.BackupDir = targetDir
+	return resp, nil
 }
 
 // BackupAccountHomeDir 将某用户的用户文件夹mv到一份备份。
@@ -499,26 +729,21 @@ func (s *LinuxSSHExecutorServiceCommon) BackupAccountHomeDir(accountName string)
 		return resp, SErr.BackupDirNotExists.CustomMessageF("备份用户文件夹时，该用户的home目录文件夹不存在！该目录为%s", getAccountHomeDirResp.HomeDir)
 	}
 
-	output, targetBackupDirPath, err := s.getBackupDir(getAccountHomeDirResp.HomeDir)
-	resp.Output = output
+	getBackupDirResp, err := s.GetBackupDir(accountName)
+	resp.Output = getBackupDirResp.Output
 	if err != nil {
 		return resp, err
 	}
 
-	pathExistsResp, err := s.PathExists(targetBackupDirPath)
-	resp.Output = pathExistsResp.Output
-	if err != nil {
-		return resp, err
+	if getBackupDirResp.PathExists {
+		return resp, SErr.BackupTargetDirAlreadyExists.CustomMessageF("备份用户文件夹时，目标的文件夹被占用！该目标路径为：%s", getBackupDirResp.BackupDir)
 	}
-	if pathExistsResp.Exists {
-		return resp, SErr.BackupTargetDirAlreadyExists.CustomMessageF("备份用户文件夹时，目标的文件夹被占用！该目标路径为：%s", targetBackupDirPath)
-	}
-	moveResp, err := s.Move(getAccountHomeDirResp.HomeDir, targetBackupDirPath, false)
+	moveResp, err := s.Move(getAccountHomeDirResp.HomeDir, getBackupDirResp.BackupDir, false)
 	resp.Output = moveResp.Output
 	if err != nil {
 		return resp, err
 	}
-	resp.TargetDir = targetBackupDirPath
+	resp.TargetDir = getBackupDirResp.BackupDir
 	return resp, nil
 }
 
@@ -538,26 +763,90 @@ func (s *LinuxSSHExecutorServiceCommon) RecoverAccountHomeDir(accountName string
 	if pathExistsResp.Exists && !force {
 		return resp, SErr.BackupTargetDirAlreadyExists.CustomMessageF("您要恢复到的home文件夹已被占用！请避免覆盖数据！该目标路径为%s", getAccountHomeDirResp.HomeDir)
 	}
-	output, backupDirPath, err := s.getBackupDir(getAccountHomeDirResp.HomeDir)
-	resp.Output = output
+	getBackupDirResp, err := s.GetBackupDir(accountName)
+	resp.Output = getBackupDirResp.Output
 	if err != nil {
 		return resp, err
 	}
-	pathExistsResp, err = s.PathExists(backupDirPath)
-	resp.Output = pathExistsResp.Output
-	if err != nil {
-		return resp, err
+	if !getBackupDirResp.DirExists {
+		return resp, SErr.BackupDirNotExists.CustomMessageF("恢复用户的目录文件夹时，该备份的文件夹不存在！其路径为：%s", getBackupDirResp.BackupDir)
 	}
-	resp.Output = pathExistsResp.Output
-	if !pathExistsResp.Exists {
-		return resp, SErr.BackupDirNotExists.CustomMessageF("恢复用户的目录文件夹时，该备份的文件夹不存在！其路径为：%s", backupDirPath)
-	}
-	moveResp, err := s.Move(backupDirPath, getAccountHomeDirResp.HomeDir, false)
+	moveResp, err := s.Move(getBackupDirResp.BackupDir, getAccountHomeDirResp.HomeDir, false)
 	resp.Output = moveResp.Output
 	if err != nil {
 		return resp, err
 	}
 	resp.HomeDir = getAccountHomeDirResp.HomeDir
+	return resp, nil
+}
+
+func (s *LinuxSSHExecutorServiceCommon) GetRemoteAccessInfos() (*ExecutorServiceRemoteAccessResp, *SErr.APIErr) {
+	resp := &ExecutorServiceRemoteAccessResp{}
+	cmd, err := loadCmdScript(s.commonPath, "w")
+	if err != nil {
+		return resp, err
+	}
+	output, err := s.SSHConn.SendCommands(cmd)
+	resp.Output = output
+	log.Printf("LinuxSSHExecutorServiceCommon GetRemoteAccessInfos w executed, output=[%s], err=[%v]", output, err)
+	if err != nil {
+		return resp, err
+	}
+	matchRemoteAccessing := func(line string) {
+		// root     pts/0    114.254.1.92      6.00s sudo w -s -h
+		line = strings.TrimSpace(line)
+		reg := regexp.MustCompile(`^(\w+)\s+[^\s]+\s+[^\s]+\s+[^\s]+\s+(.*)$`)
+		m := reg.FindStringSubmatch(line)
+		if len(m) < 3 {
+			return
+		}
+		accountName := m[1]
+		what := m[2]
+		resp.RemoteAccessingAccountInfos = append(resp.RemoteAccessingAccountInfos, &internal_models.ServerRemoteAccessingAccountInfo{
+			AccountName: accountName,
+			What:        what,
+		})
+	}
+	resp.RemoteAccessingAccountInfos = make([]*internal_models.ServerRemoteAccessingAccountInfo, 0)
+	lines := util.SplitLine(output)
+	for _, line := range lines {
+		matchRemoteAccessing(line)
+	}
+	return resp, nil
+}
+
+func (s *LinuxSSHExecutorServiceCommon) GetGPUUsages() (*ExecutorServiceVoidResp, *SErr.APIErr) {
+	resp := &ExecutorServiceVoidResp{}
+	gpuHardwareResp, err := s.GetGPUHardware()
+	if err != nil {
+		return resp, err
+	}
+	// 目前只写CUDA的。别的GPU写了也没用啊！
+	isNvidia := false
+	for _, gpu := range gpuHardwareResp.GPUs {
+		if gpu.IsNvidia() {
+			isNvidia = true
+		}
+	}
+	if isNvidia {
+		cmd, err := loadCmdScript(s.commonPath, "nvidia_gpu_name")
+		if err != nil {
+			return resp, err
+		}
+		output, _ := s.SSHConn.SendCommands(cmd)
+		gpuNames := output
+		cmd, err = loadCmdScript(s.commonPath, "nvidia_gpu_usage")
+		if err != nil {
+			return resp, err
+		}
+		output, err = s.SSHConn.SendCommands(cmd)
+		resp.Output = fmt.Sprintf("%s\n%s", gpuNames, output)
+		if err != nil {
+			return resp, err
+		}
+		return resp, nil
+	}
+	log.Printf("LinuxSSHExecutorServiceCommon GetGPUUsages no cuda gpu, skip.")
 	return resp, nil
 }
 
@@ -598,7 +887,7 @@ func (s *LinuxSSHExecutorServiceCommon) GetAccountList() (*ExecutorServiceGetAcc
 }
 
 type UbuntuSSHExecutorService struct {
-	SSHConn *LinuxSSHConnection
+	SSHConn    *LinuxSSHConnection
 	ubuntuPath string
 }
 
@@ -606,7 +895,7 @@ func NewUbuntuSSHExecutorService(SSHConn *LinuxSSHConnection) *UbuntuSSHExecutor
 	pCmdScrPath := config.GetConfig().CmdsScriptsPath
 	ubuntu := path.Join(pCmdScrPath, "ubuntu")
 	return &UbuntuSSHExecutorService{
-		SSHConn: SSHConn,
+		SSHConn:    SSHConn,
 		ubuntuPath: ubuntu,
 	}
 }
@@ -835,9 +1124,9 @@ func (s *UbuntuSSHExecutorService) GetAccountHomeDir(accountName string) (*Execu
 type LinuxSSHConnection struct {
 	*ssh.Client
 	Password string
-	Host string
-	Port uint
-	Account string
+	Host     string
+	Port     uint
+	Account  string
 }
 
 func ConnectLinuxSSH(Host string, Port uint, account, password string) (*LinuxSSHConnection, *SErr.APIErr) {
@@ -867,7 +1156,7 @@ func (conn *LinuxSSHConnection) Close() error {
 
 // CheckSudoPrivilege 检查该连接的用户是否具有sudo权限。
 func (conn *LinuxSSHConnection) CheckSudoPrivilege() (string, bool, *SErr.APIErr) {
-	commonCmdPath := path.Join(config.GetConfig().CmdsScriptsPath, "common")
+	commonCmdPath := path.Join(config.GetConfig().CmdsScriptsPath, "linux_common")
 	cmd, err := loadCmdScript(commonCmdPath, "sudo_privilege")
 	if err != nil {
 		return "", false, err
@@ -881,7 +1170,7 @@ func (conn *LinuxSSHConnection) CheckSudoPrivilege() (string, bool, *SErr.APIErr
 
 // CheckOSInfo 目前只包含操作系统类型，之后可能会针对操作系统版本做改进。
 func (conn *LinuxSSHConnection) CheckOSInfo() (string, LinuxOSType, *SErr.APIErr) {
-	commonCmdPath := path.Join(config.GetConfig().CmdsScriptsPath, "common")
+	commonCmdPath := path.Join(config.GetConfig().CmdsScriptsPath, "linux_common")
 	cmd, err := loadCmdScript(commonCmdPath, "os_info")
 	if err != nil {
 		return "", "", err
@@ -931,7 +1220,7 @@ func (conn *LinuxSSHConnection) SendCommands(cmds ...string) (string, *SErr.APIE
 		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
 	}
 
-	err = session.RequestPty("xterm", 400, 400, modes)
+	err = session.RequestPty("xterm", 800, 800, modes)
 	if err != nil {
 		return "", SErr.SSHConnectionErr.CustomMessageF("发送ssh命令失败！失败信息为：%s", err.Error())
 	}
@@ -946,28 +1235,9 @@ func (conn *LinuxSSHConnection) SendCommands(cmds ...string) (string, *SErr.APIE
 		log.Fatal(err)
 	}
 
-	//errOut, err := session.StderrPipe()
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-
-	//var errOutput []byte
 	var output []byte
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
-	//go func(in io.WriteCloser, out io.Reader, output *[]byte) {
-	//	var (
-	//		r = bufio.NewReader(out)
-	//	)
-	//	for {
-	//		b, err := r.ReadByte()
-	//		if err != nil {
-	//			break
-	//		}
-	//		*output = append(*output, b)
-	//	}
-	//	wg.Done()
-	//}(in, errOut, &errOutput)
 	go func(in io.WriteCloser, out io.Reader, output *[]byte) {
 		var (
 			line string
@@ -1015,7 +1285,5 @@ func (conn *LinuxSSHConnection) SendCommands(cmds ...string) (string, *SErr.APIE
 		}
 		outs = append(outs, str)
 	}
-	//errOutputStr := string(errOutput)
-	//log.Printf("SendCommands errOutputStr=[%s]", errOutputStr)
 	return strings.Join(outs, "\n"), nil
 }

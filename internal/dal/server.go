@@ -7,10 +7,11 @@ import (
 	"ServerServing/util"
 	"errors"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"log"
 )
 
-type ServerDal struct {}
+type ServerDal struct{}
 
 func GetServerDal() ServerDal {
 	return ServerDal{}
@@ -30,12 +31,27 @@ func (s ServerDal) Create(server *daModels.Server) *SErr.APIErr {
 		return SErr.InternalErr.CustomMessageF("创建Server的数据不合法！Server=[%v]", util.Pretty(server))
 	}
 	db := mysql.GetDB()
-	res := db.Where(&daModels.Server{Host: server.Host, Port: server.Port}).FirstOrCreate(server)
+	res := db.Model(&daModels.Server{}).Clauses(clause.OnConflict{
+		UpdateAll: true,
+	}).Create(server)
 	if res.Error != nil {
 		return SErr.InternalErr
 	}
 	if res.RowsAffected == 0 {
 		return SErr.InvalidParamErr.CustomMessageF("该Server Host=[%s] Port=[%d] 已存在，请检查参数！", server.Host, server.Port)
+	}
+	return nil
+}
+
+// Delete 删除一个服务器。
+func (s ServerDal) Delete(Host string, Port uint) *SErr.APIErr {
+	db := mysql.GetDB()
+	res := db.Delete(&daModels.Server{Host: Host, Port: Port})
+	if res.Error != nil {
+		return SErr.InternalErr
+	}
+	if res.RowsAffected == 0 {
+		return SErr.InvalidParamErr.CustomMessageF("要删除的Server Host=[%s] Port=[%d] 不存在，请检查参数！", Host, Port)
 	}
 	return nil
 }
@@ -57,7 +73,9 @@ func (s ServerDal) Get(Host string, Port uint, withAccounts bool) (*daModels.Ser
 	server := &daModels.Server{}
 	var res *gorm.DB
 	if withAccounts {
-		res = db.Model(&daModels.Server{}).Preload("AccountInfos").Where(&daModels.Server{Host: Host, Port: Port}).First(server)
+		res = db.Model(&daModels.Server{}).Preload("Accounts", func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}).Where(&daModels.Server{Host: Host, Port: Port}).First(server)
 	} else {
 		res = db.Model(&daModels.Server{}).Where(&daModels.Server{Host: Host, Port: Port}).First(server)
 	}
@@ -72,7 +90,7 @@ func (s ServerDal) Get(Host string, Port uint, withAccounts bool) (*daModels.Ser
 }
 
 // List 获取Server列表。
-func (s ServerDal) List(from, size int, withAccounts bool) ([]*daModels.Server, int, *SErr.APIErr) {
+func (s ServerDal) List(from, size uint, withAccounts bool) ([]*daModels.Server, uint, *SErr.APIErr) {
 	log.Printf("Server List, from=[%d], size=[%d]", from, size)
 	var servers []*daModels.Server
 	count, err := s.Count()
@@ -82,37 +100,42 @@ func (s ServerDal) List(from, size int, withAccounts bool) ([]*daModels.Server, 
 	db := mysql.GetDB()
 	var res *gorm.DB
 	if withAccounts {
-		res = db.Model(&daModels.Server{}).Preload("AccountInfos").Order("CreatedAt desc").Offset(from).Limit(size).Find(&servers)
+		res = db.Model(&daModels.Server{}).Preload("Accounts", func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}).Order("created_at desc").Offset(int(from)).Limit(int(size)).Find(&servers)
 	} else {
-		res = db.Model(&daModels.Server{}).Order("CreatedAt desc").Offset(from).Limit(size).Find(&servers)
+		res = db.Model(&daModels.Server{}).Order("created_at desc").Offset(int(from)).Limit(int(size)).Find(&servers)
 	}
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessageF("查询Server列表时出错！出错信息为：[%s]", res.Error.Error())
 	}
-	return servers, int(count), nil
+	return servers, uint(count), nil
 }
 
 // SearchByHostAndAdmin 指定一个keyword，同时针对Host和Admin做搜索。
-func (s ServerDal) SearchByHostAndAdmin(from, size int, keyword string, withAccounts bool)  ([]*daModels.Server, int, *SErr.APIErr) {
+func (s ServerDal) SearchByHostAndAdmin(from, size uint, keyword string, withAccounts bool) ([]*daModels.Server, uint, *SErr.APIErr) {
 	log.Printf("Servers SearchByHostAndAdmin, keyword=[%s], from=[%d], size=[%d], withAccounts=[%v]", keyword, from, size, withAccounts)
 	var servers []*daModels.Server
 	var count int64
 	db := mysql.GetDB()
 	query := "Host LIKE ? or AdminAccountName LIKE ?"
-	args := []interface{}{"%"+keyword+"%", "%"+keyword+"%"}
+	args := []interface{}{"%" + keyword + "%", "%" + keyword + "%"}
 	res := db.Model(&daModels.Server{}).Where(query, args...).Count(&count)
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessageF("搜索Server时，查询总长度失败！出错信息为：[%s]", res.Error.Error())
 	}
 	if withAccounts {
-		res = db.Model(&daModels.Server{}).Preload("AccountInfos").Where(query, args...).Offset(from).Limit(size).Find(&servers)
+		// Preload with unscoped accounts
+		res = db.Model(&daModels.Server{}).Preload("Accounts", func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}).Where(query, args...).Offset(int(from)).Limit(int(size)).Find(&servers)
 	} else {
-		res = db.Model(&daModels.Server{}).Where(query, args...).Offset(from).Limit(size).Find(&servers)
+		res = db.Model(&daModels.Server{}).Where(query, args...).Offset(int(from)).Limit(int(size)).Find(&servers)
 	}
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessageF("搜索Server时出错！出错信息为：[%s]", res.Error.Error())
 	}
-	return servers, int(count), nil
+	return servers, uint(count), nil
 }
 
 // Update 更新数据库信息，无法保证更新的目标是否相同。可以在上层通过redis做分布式锁做并发更新保障。（在mysql做并发控制需要使用事务，代价比较高）

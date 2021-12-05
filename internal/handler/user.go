@@ -21,8 +21,8 @@ func GetUserHandler() *UsersHandler {
 // @Tags user
 // @Produce json
 // @Router /api/v1/users/ [post]
-// @Param createRequest body api_models.UsersCreateRequest true "createRequest"
-// @Success 200 {object} api_models.UsersCreateResponse
+// @Param userCreateRequest body internal_models.UsersCreateRequest true "userCreateRequest"
+// @Success 200 {object} internal_models.UsersCreateResponse
 func (h UsersHandler) Create(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.APIErr) {
 	req := &models.UsersCreateRequest{}
 	err := c.ShouldBind(req)
@@ -43,7 +43,7 @@ func (h UsersHandler) Create(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.A
 // @Produce json
 // @Router /api/v1/users/{id} [get]
 // @param id path int true "id"
-// @Success 200 {object} api_models.UsersInfoResponse
+// @Success 200 {object} internal_models.UsersInfoResponse
 func (h UsersHandler) Info(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.APIErr) {
 	userIDStr := c.Param("id")
 	userID, err := util.ParseInt(userIDStr)
@@ -67,11 +67,11 @@ func (h UsersHandler) Info(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.API
 // @Tags user
 // @Produce json
 // @Router /api/v1/users/ [get]
-// @Param infoRequest query api_models.UsersInfosRequest true "InfosRequest"
-// @Success 200 {object} api_models.UsersInfosResponse
+// @Param userInfoRequest query internal_models.UsersInfosRequest true "userInfosRequest"
+// @Success 200 {object} internal_models.UsersInfosResponse
 func (h UsersHandler) Infos(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.APIErr) {
 	req := &models.UsersInfosRequest{}
-	err := c.BindQuery(req)
+	err := c.ShouldBindQuery(req)
 	if err != nil {
 		return nil, SErr.BadRequestErr
 	}
@@ -91,8 +91,8 @@ func (h UsersHandler) Infos(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.AP
 // @Produce json
 // @Router /api/v1/users/{id} [put]
 // @param id path uint true "id"
-// @Param updateRequest body api_models.UsersUpdateRequest true "updateRequest"
-// @Success 200 {object} api_models.UsersUpdateResponse
+// @Param updateRequest body internal_models.UsersUpdateRequest true "updateRequest"
+// @Success 200 {object} internal_models.UsersUpdateResponse
 func (h UsersHandler) Update(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.APIErr) {
 	targetIDStr := c.Param("id")
 	targetID, err := util.ParseInt(targetIDStr)

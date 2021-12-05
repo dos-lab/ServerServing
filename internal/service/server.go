@@ -5,62 +5,97 @@ import (
 	SErr "ServerServing/err"
 	"ServerServing/internal/dal"
 	"ServerServing/internal/internal_models"
+	"ServerServing/util"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"log"
+	"sync"
 )
 
-type ServersService struct{}
-
-type LoadServerAccountArg struct {
-	// From Size 如果指定了这两个数值，都不为0，则使用它们。否则全部load全部的Account
-	From uint
-	Size uint
-}
-
-type LoadServerDetailArg struct {
-	// WithHardwareInfo 指定是否加载硬件的元信息
-	WithHardwareInfo bool
-	// WithAccountArg 加载账户信息的参数，为nil则不加载
-	WithAccountArg *LoadServerAccountArg
-	// WithRemoteAccessUsages 指定是否加载正在远程登录这台服务器的用户信息。
-	WithRemoteAccessUsages bool
-	// WithGPUUsages 指定是否加载GPU的使用信息。
-	WithGPUUsages bool
-	// WithCPUMemProcessesUsageInfo 指定是否加载CPU，内存，进程的使用信息。
-	WithCPUMemProcessesUsageInfo bool
+type ServersService struct{
+	ES ExecutorService
 }
 
 func GetServersService() *ServersService {
 	return &ServersService{}
 }
 
-// Info 获取一个Server数据。
-func (s *ServersService) Info(Host string, Port uint, arg *LoadServerDetailArg) (*internal_models.ServerInfo, *SErr.APIErr){
-	// 每个请求内部共享一次SSH session
-	serverInfo := &internal_models.ServerInfo{}
-	// 需要加载Basic的信息，与Account的加载同时进行。
+func (s *ServersService) Create(c *gin.Context, Host string, Port uint, OSType daModels.OSType, adminAccountName, adminAccountPwd string) *SErr.APIErr {
+	_, err := GetExecutorService(Host, Port, OSType, adminAccountName, adminAccountPwd)
+	if err != nil {
+		return err
+	}
+	// 能够联通该服务器，则调用MySQL创建。
+	serverDal := dal.GetServerDal()
+	err = serverDal.Create(&daModels.Server{
+		Host:             Host,
+		Port:             Port,
+		AdminAccountName: adminAccountName,
+		AdminAccountPwd:  adminAccountPwd,
+		OSType:           OSType,
+	})
+	if err != nil {
+		log.Printf("ServersService serverDal.Create failed, err=[%v]", err)
+		return err
+	}
+	return nil
+}
 
-	// 第一步，从MySQL加载初步的Server信息，获取该服务器的管理员账号与密码，以便后续的信息获取。
-	serverBasic, accounts, err := s.loadBasic(Host, Port, arg.WithAccountArg)
+func (s *ServersService) Delete(c *gin.Context, Host string, Port uint) *SErr.APIErr {
+	// 能够联通该服务器，则调用MySQL创建。
+	serverDal := dal.GetServerDal()
+	err := serverDal.Delete(Host, Port)
+	if err != nil {
+		log.Printf("ServersService serverDal.Create failed, err=[%v]", err)
+		return err
+	}
+	return nil
+}
+
+// Info 获取一个Server数据。
+func (s *ServersService) Info(c *gin.Context, Host string, Port uint, arg *internal_models.LoadServerDetailArg) (*internal_models.ServerInfo, *SErr.APIErr) {
+	// 每个请求内部共享一次SSH session
+	// 需要加载Basic的信息，与Account的加载同时进行。
+	// 从MySQL加载初步的Server信息，获取该服务器的管理员账号与密码，以便后续的信息获取。
+	serverDal := dal.GetServerDal()
+	daServer, err := serverDal.Get(Host, Port, true)
 	if err != nil {
 		return nil, err
 	}
-	serverInfo.Basic = serverBasic
-	// 从服务器中能够获取到一份Account数据，但是并不一定是最新的服务器中的用户数据。
-	serverInfo.AccountInfos = &internal_models.ServerAccountInfos{
-		Accounts:         accounts,
-	}
+	serverBasic, accounts := s.packServer(daServer), s.packAccounts(daServer.Accounts)
+	return s.loadInfoFromServer(serverBasic, accounts, arg)
+}
 
-	// 第二步，初始化到该服务器的连接，如果连接失败，则直接返回错误。
-	es, err := s.getExecutorService(Host, Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
+func (s *ServersService) EnsureExecutorService(Host string, Port uint, osType daModels.OSType, AdminAccountName, AdminAccountPwd string) *SErr.APIErr {
+	es, err := GetExecutorService(Host, Port, osType, AdminAccountName, AdminAccountPwd)
 	if err != nil {
 		causeDescription := fmt.Sprintf("在尝试使用管理员账户与该服务器建连时失败！请检查该账户的配置以及网络状况！内嵌的出错信息为：[%s]", err.Message)
 		log.Printf("ServersService Info，causeDescription=[%s]", causeDescription)
-		serverInfo.AccessFailedInfo.CauseDescription = causeDescription
-		return nil, SErr.SSHConnectionErr.CustomMessage(causeDescription)
+		return SErr.SSHConnectionErr.CustomMessage(causeDescription)
+	}
+	s.ES = es
+	return nil
+}
+
+func (s *ServersService) loadInfoFromServer(serverBasic *internal_models.ServerBasic, accounts []*internal_models.Account, arg *internal_models.LoadServerDetailArg) (*internal_models.ServerInfo, *SErr.APIErr) {
+	serverInfo := &internal_models.ServerInfo{}
+	serverInfo.Basic = serverBasic
+	// 从服务器中能够获取到一份Account数据，但是并不一定是最新的服务器中的用户数据。
+	serverInfo.AccountInfos = &internal_models.ServerAccountInfos{
+		Accounts: accounts,
+	}
+
+	// 第二步，初始化到该服务器的连接，如果连接失败，则直接返回错误。
+	if s.ES == nil {
+		err := s.EnsureExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
+		if err != nil {
+			serverInfo.AccessFailedInfo.CauseDescription = err.Message
+			return serverInfo, err
+		}
 	}
 
 	// 接下来，分别对LoadServerDetailArg中的每个可选项进行针对性的load
+	// 后续的调用都保证ES已经经过初始化。
 
 	// 对WithAccountArg做load：
 	// 账户信息在MySQL中存储一份，但是不一定准确（因为Server可能随时被人修改）
@@ -69,36 +104,59 @@ func (s *ServersService) Info(Host string, Port uint, arg *LoadServerDetailArg) 
 	// 如果MySQL中，没有存储该账户的信息，则使用从Server查询的最新数据插入该用户的数据。
 	// 如果MySQL存储了，并且从Server能够查询到该用户（一致的），则将它的信息进行补全。
 	// 如果MYSQL存储了，但是从Server中查不到该用户（可能被删掉了），那么就把他的数据过滤掉（不在MySQL中删除）
-	s.combineAccounts(es, arg, serverInfo)
+	s.combineAccounts(s.ES, arg, serverInfo)
 
-	// 对WithHardwareInfo做load
-	s.loadHardwareInfo(es, arg, serverInfo)
+	// 对WithHardwareInfo做load：
+	// 目前包含CPU和GPU的硬件数据。
+	s.loadHardwareInfo(s.ES, arg, serverInfo)
+
+	// 对WithRemoteAccessUsages做load
+	// 包含了当前正在使用远程访问该服务器的用户信息
+	s.loadRemoteAccessUsages(s.ES, arg, serverInfo)
 
 	// 对WithCPUMemProcessesUsageInfo做load
-	s.loadCPUMemProcessesUsageInfo(es, arg, serverInfo)
+	s.loadCPUMemProcessesUsageInfo(s.ES, arg, serverInfo)
 
 	// 对WithGPUUsages做load
-	s.loadGPUUsages(es, arg, serverInfo)
+	s.loadGPUUsages(s.ES, arg, serverInfo)
 
 	return serverInfo, nil
-}
 
-func (s *ServersService) getExecutorService(Host string, Port uint, osType daModels.OSType, adminAccountName, adminAccountPwd string) (ExecutorService, *SErr.APIErr) {
-	switch osType {
-	case daModels.OSTypeLinux:
-		return GetLinuxSSHExecutorService(Host, Port, adminAccountName, adminAccountPwd)
-	default:
-		panic("Unimplemented")
-	}
 }
 
 // Infos 获取一批Server数据。目前所有Server使用同一个arg参数指定它对应的Detail信息量。
-func (s *ServersService) Infos(from, size int, arg *LoadServerDetailArg, keyword *string) {
-
+func (s *ServersService) Infos(c *gin.Context, from, size uint, arg *internal_models.LoadServerDetailArg, keyword *string) ([]*internal_models.ServerInfo, uint, *SErr.APIErr) {
+	serverDal := dal.GetServerDal()
+	var servers []*daModels.Server
+	var total uint
+	var err *SErr.APIErr
+	if keyword != nil {
+		servers, total, err = serverDal.SearchByHostAndAdmin(from, size, *keyword, arg.WithAccounts)
+	} else {
+		servers, total, err = serverDal.List(from, size, arg.WithAccounts)
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	resultServerInfos := make([]*internal_models.ServerInfo, 0, len(servers))
+	wg := &sync.WaitGroup{}
+	mu := &sync.Mutex{}
+	for _, daServer := range servers {
+		daServer := daServer
+		serverBasic, accounts := s.packServer(daServer), s.packAccounts(daServer.Accounts)
+		util.GoWithWG(wg, func() {
+			serverInfo, _ := s.loadInfoFromServer(serverBasic, accounts, arg)
+			mu.Lock()
+			defer mu.Unlock()
+			resultServerInfos = append(resultServerInfos, serverInfo)
+		})
+	}
+	wg.Wait()
+	return resultServerInfos, total, nil
 }
 
-func (s *ServersService) combineAccounts(es ExecutorService, arg *LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
-	if arg.WithAccountArg == nil {
+func (s *ServersService) combineAccounts(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+	if arg.WithAccounts == false {
 		return
 	}
 	serverInfo.AccountInfos = &internal_models.ServerAccountInfos{
@@ -125,7 +183,7 @@ func (s *ServersService) combineAccounts(es ExecutorService, arg *LoadServerDeta
 			acc.UID = accInServer.UID
 			acc.GID = accInServer.GID
 		} else {
-			// 从MySQL中存储的账户不存在与在从服务器中存储的账户列表
+			// 从MySQL中存储的账户不存在于在从服务器中存储的账户列表
 			// 那么，即该账户可能是在Server中被擅自删除了，那么这时先给该账户打一个标记。
 			acc.NotExistsInServer = true
 		}
@@ -139,10 +197,10 @@ func (s *ServersService) combineAccounts(es ExecutorService, arg *LoadServerDeta
 		toBeInserted := make([]*daModels.Account, 0, len(accountsInServerMap))
 		for _, accountInServer := range accountsInServerMap {
 			toBeInserted = append(toBeInserted, &daModels.Account{
-				Name:      accountInServer.Name,
-				Pwd:       accountInServer.Pwd,
-				Host:      accountInServer.Host,
-				Port:      accountInServer.Port,
+				Name: accountInServer.Name,
+				Pwd:  accountInServer.Pwd,
+				Host: accountInServer.Host,
+				Port: accountInServer.Port,
 			})
 		}
 		accDal := dal.GetAccountDal()
@@ -159,29 +217,97 @@ func (s *ServersService) combineAccounts(es ExecutorService, arg *LoadServerDeta
 }
 
 // loadHardwareInfo 加载硬件相关信息
-func (s *ServersService) loadHardwareInfo(es ExecutorService, arg *LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
-	// TODO
+func (s *ServersService) loadHardwareInfo(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+	if !arg.WithHardwareInfo {
+		return
+	}
+	serverInfo.HardwareInfo = &internal_models.ServerHardwareInfo{
+		CPUHardwareInfo: &internal_models.ServerCPUHardwareInfo{
+			ServerInfoCommon: &internal_models.ServerInfoCommon{
+				Output:     "",
+				FailedInfo: nil,
+			},
+			CPUHardwareInfo: nil,
+		},
+		GPUHardwareInfos: &internal_models.ServerGPUHardwareInfos{
+			ServerInfoCommon: &internal_models.ServerInfoCommon{
+				Output:     "",
+				FailedInfo: nil,
+			},
+			GPUInfos: nil,
+		},
+	}
+	// CPU
+	cpuResp, err := es.GetCPUHardware()
+	serverInfo.HardwareInfo.CPUHardwareInfo.Output = cpuResp.Output
+	if err != nil {
+		serverInfo.HardwareInfo.CPUHardwareInfo.FailedInfo = &internal_models.ServerInfoLoadingFailedInfo{
+			CauseDescription: fmt.Sprintf("向服务器查询cpu数据时出错！es=[%s]，出错信息为：[%s]", es, err.Error()),
+		}
+	}
+	serverInfo.HardwareInfo.CPUHardwareInfo.CPUHardwareInfo = cpuResp.CPU
+	// GPU
+	gpuResp, err := es.GetGPUHardware()
+	serverInfo.HardwareInfo.GPUHardwareInfos.Output = gpuResp.Output
+	if err != nil {
+		serverInfo.HardwareInfo.GPUHardwareInfos.FailedInfo = &internal_models.ServerInfoLoadingFailedInfo{
+			CauseDescription: fmt.Sprintf("向服务器查询gpu数据时出错！es=[%s]，出错信息为：[%s]", es, err.Error()),
+		}
+	}
+	serverInfo.HardwareInfo.GPUHardwareInfos.GPUInfos = gpuResp.GPUs
 }
 
 // loadRemoteAccessUsages 加载正在远程访问该Server的用户使用信息。
-func (s *ServersService) loadRemoteAccessUsages(es ExecutorService, arg *LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
-	// TODO
+func (s *ServersService) loadRemoteAccessUsages(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+	if !arg.WithRemoteAccessUsages {
+		return
+	}
+	serverInfo.RemoteAccessingUsageInfo = &internal_models.ServerRemoteAccessingUsagesInfo{
+		ServerInfoCommon: &internal_models.ServerInfoCommon{
+			Output:     "",
+			FailedInfo: nil,
+		},
+		RemoteAccessingAccountInfos: nil,
+	}
+	resp, err := es.GetRemoteAccessInfos()
+	serverInfo.RemoteAccessingUsageInfo.Output = resp.Output
+	if err != nil {
+		serverInfo.RemoteAccessingUsageInfo.FailedInfo = &internal_models.ServerInfoLoadingFailedInfo{
+			CauseDescription: fmt.Sprintf("向服务器查询远端访问数据时出错！es=[%s]，出错信息为：[%s]", es, err.Error()),
+		}
+		return
+	}
+	serverInfo.RemoteAccessingUsageInfo.RemoteAccessingAccountInfos = resp.RemoteAccessingAccountInfos
 }
 
 // loadGPUUsages 加载GPU的使用情况
-func (s *ServersService) loadGPUUsages(es ExecutorService, arg *LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
-    // TODO
+func (s *ServersService) loadGPUUsages(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+	if !arg.WithGPUUsages {
+		return
+	}
+	serverInfo.GPUUsageInfo = &internal_models.ServerGPUUsageInfo{
+		ServerInfoCommon: &internal_models.ServerInfoCommon{
+			Output:     "",
+			FailedInfo: nil,
+		},
+	}
+	resp, err := es.GetGPUUsages()
+	if err != nil {
+		serverInfo.GPUUsageInfo.FailedInfo.CauseDescription = fmt.Sprintf("向服务器查询GPU使用数据时出错！es=[%s]，出错信息为：[%s]", es, err.Error())
+		return
+	}
+	serverInfo.GPUUsageInfo.Output = resp.Output
 }
 
 // loadCPUMemProcessesUsageInfo 加载当前正在使用CPU，内存，以及进程的占用信息。
-func (s *ServersService) loadCPUMemProcessesUsageInfo(es ExecutorService, arg *LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
-	if !arg.WithCPUMemProcessesUsageInfo {
+func (s *ServersService) loadCPUMemProcessesUsageInfo(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+	if !arg.WithCPUMemProcessesUsage {
 		return
 	}
 	serverInfo.CPUMemProcessesUsageInfo = &internal_models.ServerCPUMemProcessesUsageInfo{
 		ServerInfoCommon: &internal_models.ServerInfoCommon{},
 	}
-	topResp, err := es.Top()
+	topResp, err := es.GetCPUMemProcessesUsages()
 	serverInfo.CPUMemProcessesUsageInfo.Output = topResp.Output
 	if err != nil {
 		serverInfo.CPUMemProcessesUsageInfo.FailedInfo = &internal_models.ServerInfoLoadingFailedInfo{
@@ -193,39 +319,16 @@ func (s *ServersService) loadCPUMemProcessesUsageInfo(es ExecutorService, arg *L
 	serverInfo.CPUMemProcessesUsageInfo.ProcessInfos = topResp.ProcessInfos
 }
 
-// loadBasic 从MySQL加载一个基本的Server信息，是所有其他的查询的基本步骤。
-func (s *ServersService) loadBasic(Host string, Port uint, withAccountArg *LoadServerAccountArg) (*internal_models.ServerBasic, []*internal_models.Account, *SErr.APIErr) {
-	serverDal := dal.GetServerDal()
-	if withAccountArg.From == 0 && withAccountArg.Size == 0 {
-		// 都为空时，全部加载
-		server, err := serverDal.Get(Host, Port, true)
-		if err != nil {
-			return nil, nil, err
-		}
-		return s.packServer(server), s.packAccounts(server.Accounts), nil
-	}
-	server, err := serverDal.Get(Host, Port, false)
-	if err != nil {
-		return nil, nil, err
-	}
-	resServer := s.packServer(server)
-	accountDal := dal.GetAccountDal()
-	accs, _, err := accountDal.List(Host, Port, withAccountArg.From, withAccountArg.Size)
-	if err != nil {
-		return nil, s.packPtrAccounts(accs), err
-	}
-	return resServer, s.packPtrAccounts(accs), nil
-}
-
 func (s *ServersService) packServer(server *daModels.Server) *internal_models.ServerBasic {
 	return &internal_models.ServerBasic{
-		CreatedAt:  server.CreatedAt,
-		UpdatedAt: server.UpdatedAt,
-		DeletedAt: server.DeletedAt,
+		CreatedAt:        server.CreatedAt,
+		UpdatedAt:        server.UpdatedAt,
+		DeletedAt:        server.DeletedAt,
 		Host:             server.Host,
 		Port:             server.Port,
 		AdminAccountName: server.AdminAccountName,
 		AdminAccountPwd:  server.AdminAccountPwd,
+		OSType: 		  server.OSType,
 	}
 }
 

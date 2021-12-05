@@ -135,7 +135,7 @@ func TestSSHExecutorService_Recover(t *testing.T) {
 
 func TestSSHExecutorService_Top(t *testing.T) {
 	s := initConn(t)
-	resp, err := s.Top()
+	resp, err := s.GetCPUMemProcessesUsages()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -165,6 +165,56 @@ func TestConnect(t *testing.T) {
 	t.Log(util.Pretty(output))
 }
 
+func TestGPUInfo(t *testing.T) {
+	s := initConn(t)
+	resp, err := s.GetGPUHardware()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(util.Pretty(resp))
+}
+
+func TestCPUInfo(t *testing.T) {
+	s := initConn(t)
+	resp, err := s.GetCPUHardware()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(util.Pretty(resp))
+}
+
+func TestRemoteAccess(t *testing.T) {
+	s := initConn(t)
+	resp, err := s.GetRemoteAccessInfos()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(util.Pretty(resp))
+}
+
+func TestMemInfo(t *testing.T) {
+	s := initConn(t)
+	resp, err := s.GetMemoryHardware()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(util.Pretty(resp))
+}
+
+func TestGPUUsage(t *testing.T) {
+	config.InitConfigWithFile("/Users/purchaser/go/src/ServerServing/config.yml", "dev")
+	s, err := GetLinuxSSHExecutorService("133.133.135.42", 22, "yzc", "zhjt9910")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := s.GetGPUUsages()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("output:", resp.Output)
+	t.Log(util.Pretty(resp))
+}
+
 func TestGorh(t *testing.T) {
 	// Start new ssh connection with private key.
 	auth := goph.Password("zhjT9910123!")
@@ -187,51 +237,3 @@ func TestGorh(t *testing.T) {
 	// Get your output as []byte.
 	fmt.Println(string(out))
 }
-
-//func testShell(t *testing.T) {
-//	sshConfig := &ssh.ClientConfig{
-//		User: "someuser",
-//		Auth: []ssh.AuthMethod{
-//			ssh.Password("zhjT9910123!"),
-//		},
-//		HostKeyCallback: ssh.HostKeyCallback(func(hostname string, remote net.Addr, key ssh.PublicKey) error { return nil }),
-//	}
-//
-//	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", "47.93.56.75", 22), sshConfig)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	session, err := conn.NewSession()
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//	defer session.Close()
-//
-//	modes := ssh.TerminalModes{
-//		// ssh.ECHO:          1,     // disable echoing
-//		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
-//		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
-//	}
-//
-//	err = session.RequestPty("xterm", 80, 40, modes)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	in, err := session.StdinPipe()
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//
-//	out, err := session.StdoutPipe()
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//
-//	err = session.Shell()
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	in.Write([]byte("top bn1 \n"))
-//}

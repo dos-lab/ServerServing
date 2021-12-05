@@ -21,6 +21,16 @@ var (
 		Status:  http.StatusBadRequest,
 		Stable:  true,
 	}
+	AdminOnlyActionErr = &APIErr{
+		Message: "该行为需要管理员权限！",
+		Status:  http.StatusOK,
+		Stable:  true,
+	}
+	NeedLoginErr = &APIErr{
+		Message: "需要登录！",
+		Status:  http.StatusOK,
+		Stable:  true,
+	}
 	InvalidParamErr = &APIErr{
 		Message: "请求参数有误",
 		Status:  http.StatusOK,
@@ -53,6 +63,21 @@ var (
 	}
 	RecoverHomeDirAlreadyExists = &APIErr{
 		Message: "恢复备份的用户文件夹时，该用户的home目录文件夹已经存在！",
+		Status:  http.StatusOK,
+		Stable:  true,
+	}
+	CreateAccountNameAlreadyExists = &APIErr{
+		Message: "创建账户时，该账户名已经存在！",
+		Status:  http.StatusOK,
+		Stable:  true,
+	}
+	UpdateAccountNameNotExists = &APIErr{
+		Message: "更新账户信息时，该账户名不存在！",
+		Status:  http.StatusOK,
+		Stable:  true,
+	}
+	DeleteAccountNameNotExists = &APIErr{
+		Message: "删除账户时，要删除的账户名不存在！",
 		Status:  http.StatusOK,
 		Stable:  true,
 	}

@@ -19,7 +19,7 @@ func (s *UsersService) Create(c *gin.Context, name string, pwd string) (*da_mode
 		Name: name,
 		Pwd:  pwd,
 	}
-	sErr := dal.GetDal().Create(user)
+	sErr := dal.GetUserDal().Create(user)
 	if sErr != nil {
 		return nil, sErr
 	}
@@ -31,7 +31,7 @@ func (s *UsersService) Create(c *gin.Context, name string, pwd string) (*da_mode
 }
 
 func (s *UsersService) Info(c *gin.Context, userID int) (*da_models.User, *SErr.APIErr) {
-	user, sErr := dal.GetDal().GetByID(userID)
+	user, sErr := dal.GetUserDal().GetByID(userID)
 	if sErr != nil {
 		return nil, sErr
 	}
@@ -39,7 +39,7 @@ func (s *UsersService) Info(c *gin.Context, userID int) (*da_models.User, *SErr.
 }
 
 func (s *UsersService) CheckPwd(c *gin.Context, name string, pwd string) (*da_models.User, *SErr.APIErr) {
-	user, sErr := dal.GetDal().GetByName(name)
+	user, sErr := dal.GetUserDal().GetByName(name)
 	if sErr != nil {
 		return nil, sErr
 	}
@@ -54,9 +54,9 @@ func (s *UsersService) Infos(c *gin.Context, from, size int, searchKeyword *stri
 	var totalCount int
 	var sErr *SErr.APIErr
 	if searchKeyword == nil {
-		users, totalCount, sErr = dal.GetDal().List(from, size)
+		users, totalCount, sErr = dal.GetUserDal().List(from, size)
 	} else {
-		users, totalCount, sErr = dal.GetDal().SearchByName(*searchKeyword, from, size)
+		users, totalCount, sErr = dal.GetUserDal().SearchByName(*searchKeyword, from, size)
 	}
 	return users, totalCount, sErr
 }
@@ -64,10 +64,7 @@ func (s *UsersService) Infos(c *gin.Context, from, size int, searchKeyword *stri
 func (s *UsersService) Update(c *gin.Context, targetID int, updateReq *internal_models.UsersUpdateRequest) *SErr.APIErr {
 	userID, sErr := GetSessionsService().GetUserID(c)
 	if sErr != nil {
-		return sErr
-	}
-	if userID == 0 {
-		return SErr.ForbiddenErr.CustomMessageF("更新用户信息前，必须要登录。")
+		return SErr.NeedLoginErr.CustomMessageF("更新用户信息前，必须要登录。")
 	}
 	// 只有管理员可以更新其他人的数据，只有本人可以修改本人的数据
 	userInfo, sErr := s.Info(c, userID)
@@ -75,7 +72,15 @@ func (s *UsersService) Update(c *gin.Context, targetID int, updateReq *internal_
 		return sErr
 	}
 	if !userInfo.Admin && userID != targetID {
-		return SErr.ForbiddenErr.CustomMessageF("只有管理员用户和本人才能修改该用户的数据！")
+		return SErr.AdminOnlyActionErr
 	}
-	return dal.GetDal().Update(targetID, updateReq)
+	return dal.GetUserDal().Update(targetID, updateReq)
+}
+
+func (s *UsersService) IsAdmin(c *gin.Context, targetID int) (bool, *SErr.APIErr) {
+	userInfo, err := s.Info(c, targetID)
+	if err != nil {
+		return false, err
+	}
+	return userInfo.Admin, nil
 }

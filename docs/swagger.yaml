@@ -1,47 +1,281 @@
 definitions:
-  api_models.SessionsCheckResponse:
+  gorm.DeletedAt:
+    properties:
+      time:
+        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
+    type: object
+  internal_models.Account:
+    properties:
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      gid:
+        type: integer
+      host:
+        type: string
+      name:
+        type: string
+      not_exists_in_server:
+        type: boolean
+      port:
+        type: integer
+      pwd:
+        type: string
+      server:
+        $ref: '#/definitions/internal_models.ServerBasic'
+      uid:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  internal_models.ServerAccountInfos:
+    properties:
+      accounts:
+        items:
+          $ref: '#/definitions/internal_models.Account'
+        type: array
+      failed_info:
+        $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
+      output:
+        type: string
+    type: object
+  internal_models.ServerBasic:
+    properties:
+      admin_account_name:
+        type: string
+      admin_account_pwd:
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        $ref: '#/definitions/gorm.DeletedAt'
+      host:
+        type: string
+      os_type:
+        type: string
+      port:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  internal_models.ServerCPUHardwareInfo:
+    properties:
+      cpuhardwareInfo:
+        $ref: '#/definitions/internal_models.ServerCPUs'
+      failed_info:
+        $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
+      output:
+        type: string
+    type: object
+  internal_models.ServerCPUMemProcessesUsageInfo:
+    properties:
+      cpumemUsage:
+        $ref: '#/definitions/internal_models.ServerCPUMemUsage'
+        description: CPUMemUsage 服务器总的CPU，内存使用率。
+      failed_info:
+        $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
+      output:
+        type: string
+      process_infos:
+        description: ProcessInfos 全部进程信息。
+        items:
+          $ref: '#/definitions/internal_models.ServerProcessInfo'
+        type: array
+    type: object
+  internal_models.ServerCPUMemUsage:
+    properties:
+      mem_usage:
+        description: MemUsage 总内存使用（比例：如3600MB/8000MB）
+        type: string
+      user_cpu_usage:
+        description: UserProcCPUUsage 记录用户进程的CPU使用率。（总比例）
+        type: string
+    type: object
+  internal_models.ServerCPUs:
+    properties:
+      architecture:
+        description: Architecture 架构
+        type: string
+      cores:
+        description: Cores CPU核数
+        type: integer
+      model_name:
+        description: ModelName 如：Intel(R) Xeon(R) CPU E5-2682 v4 @ 2.50GHz
+        type: string
+      threads_per_core:
+        description: ThreadsPerCore 每个核心可以跑几个线程
+        type: integer
+    type: object
+  internal_models.ServerCreateRequest:
+    properties:
+      admin_account_name:
+        type: string
+      admin_account_pwd:
+        type: string
+      host:
+        type: string
+      os_type:
+        type: string
+      port:
+        type: integer
+    type: object
+  internal_models.ServerCreateResponse:
+    type: object
+  internal_models.ServerDeleteRequest:
+    properties:
+      host:
+        type: string
+      port:
+        type: integer
+    type: object
+  internal_models.ServerDeleteResponse:
+    type: object
+  internal_models.ServerGPU:
+    properties:
+      product:
+        description: Product 产品名。
+        type: string
+    type: object
+  internal_models.ServerGPUHardwareInfos:
+    properties:
+      failed_info:
+        $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
+      gpu_infos:
+        items:
+          $ref: '#/definitions/internal_models.ServerGPU'
+        type: array
+      output:
+        type: string
+    type: object
+  internal_models.ServerGPUUsageInfo:
+    properties:
+      failed_info:
+        $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
+      output:
+        type: string
+    type: object
+  internal_models.ServerHardwareInfo:
+    properties:
+      cpu_hardware_info:
+        $ref: '#/definitions/internal_models.ServerCPUHardwareInfo'
+      failed_info:
+        $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
+      gpu_hardware_infos:
+        $ref: '#/definitions/internal_models.ServerGPUHardwareInfos'
+      output:
+        type: string
+    type: object
+  internal_models.ServerInfo:
+    properties:
+      access_failed_info:
+        $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
+        description: AccessFailedInfo 指定了当该服务器连接失败时的信息。如果该字段不为空，那么其他字段才有意义。
+      account_infos:
+        $ref: '#/definitions/internal_models.ServerAccountInfos'
+        description: AccountInfos 记录服务器账户信息。
+      basic:
+        $ref: '#/definitions/internal_models.ServerBasic'
+        description: Basic 基本的Server目录信息
+      cpu_mem_processes_usage_info:
+        $ref: '#/definitions/internal_models.ServerCPUMemProcessesUsageInfo'
+        description: CPUMemProcessesUsageInfo CPU，内存，进程的使用资源信息。（Top指令）
+      hardware_info:
+        $ref: '#/definitions/internal_models.ServerHardwareInfo'
+        description: ServerHardwareInfo 硬件元信息
+      remote_accessing_usage_info:
+        $ref: '#/definitions/internal_models.ServerRemoteAccessingUsagesInfo'
+        description: RemoteAccessingUsageInfo 正在从远端访问的用户的使用信息
+      server_gpu_usage_info:
+        $ref: '#/definitions/internal_models.ServerGPUUsageInfo'
+        description: GPUUsageInfo 当前该Server总的GPU利用率信息。（当前为string，具体待定）
+    type: object
+  internal_models.ServerInfoLoadingFailedInfo:
+    properties:
+      causeDescription:
+        description: 描述具体原因。
+        type: string
+    type: object
+  internal_models.ServerInfoResponse:
+    properties:
+      serverInfo:
+        $ref: '#/definitions/internal_models.ServerInfo'
+    type: object
+  internal_models.ServerInfosResponse:
+    properties:
+      serverInfos:
+        items:
+          $ref: '#/definitions/internal_models.ServerInfo'
+        type: array
+      totalCount:
+        type: integer
+    type: object
+  internal_models.ServerProcessInfo:
+    properties:
+      command:
+        description: Command 命令
+        type: string
+      cpu_usage:
+        description: CPU利用率。
+        type: string
+      failed_info:
+        $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
+      gpu_usage:
+        description: GPU利用率（不一定能查到）
+        type: string
+      mem_usage:
+        description: 内存利用率
+        type: string
+      output:
+        type: string
+      owner_account_name:
+        description: OwnerAccountName 该进程由哪个用户启动。
+        type: string
+      pid:
+        description: PID 进程号。
+        type: integer
+    type: object
+  internal_models.ServerRemoteAccessingAccountInfo:
+    properties:
+      account_name:
+        type: string
+      what:
+        description: What 表示该远程访问的用户正在执行的命令。
+        type: string
+    type: object
+  internal_models.ServerRemoteAccessingUsagesInfo:
+    properties:
+      failed_info:
+        $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
+      output:
+        type: string
+      remote_accessing_account_infos:
+        items:
+          $ref: '#/definitions/internal_models.ServerRemoteAccessingAccountInfo'
+        type: array
+    type: object
+  internal_models.SessionsCheckResponse:
     properties:
       userID:
         type: integer
     type: object
-  api_models.SessionsCreateRequest:
+  internal_models.SessionsCreateRequest:
     properties:
       name:
         type: string
       pwd:
         type: string
     type: object
-  api_models.SessionsCreateResponse:
+  internal_models.SessionsCreateResponse:
     type: object
-  api_models.SessionsDestroyRequest:
+  internal_models.SessionsDestroyRequest:
     type: object
-  api_models.SessionsDestroyResponse:
+  internal_models.SessionsDestroyResponse:
     type: object
-  api_models.User:
-    properties:
-      admin:
-        type: boolean
-      created_at:
-        type: string
-      id:
-        type: integer
-      name:
-        type: string
-      pwd:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  api_models.UsersCreateRequest:
-    properties:
-      name:
-        type: string
-      pwd:
-        type: string
-    type: object
-  api_models.UsersCreateResponse:
-    type: object
-  api_models.UsersInfoResponse:
+  internal_models.User:
     properties:
       admin:
         type: boolean
@@ -56,16 +290,40 @@ definitions:
       updated_at:
         type: string
     type: object
-  api_models.UsersInfosResponse:
+  internal_models.UsersCreateRequest:
+    properties:
+      name:
+        type: string
+      pwd:
+        type: string
+    type: object
+  internal_models.UsersCreateResponse:
+    type: object
+  internal_models.UsersInfoResponse:
+    properties:
+      admin:
+        type: boolean
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      pwd:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  internal_models.UsersInfosResponse:
     properties:
       infos:
         items:
-          $ref: '#/definitions/api_models.User'
+          $ref: '#/definitions/internal_models.User'
         type: array
       total_count:
         type: integer
     type: object
-  api_models.UsersUpdateRequest:
+  internal_models.UsersUpdateRequest:
     properties:
       admin:
         type: boolean
@@ -74,167 +332,288 @@ definitions:
       pwd:
         type: string
     type: object
-  api_models.UsersUpdateResponse:
+  internal_models.UsersUpdateResponse:
     type: object
 info:
   contact:
     email: support@swagger.io
     name: API Support
     url: http://www.swagger.io/support
-  description: This is a SoftwareWarehouse API server.
+  description: This is a ServerServing API server.
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
-  title: SoftwareWarehouse Web API
+  title: ServerServing Web API
   version: "1.0"
 paths:
+  /api/v1/servers/:
+    delete:
+      parameters:
+      - description: serverDeleteRequest
+        in: body
+        name: serverDeleteRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_models.ServerDeleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_models.ServerDeleteResponse'
+      summary: 删除server。
+      tags:
+      - server
+    get:
+      parameters:
+      - in: query
+        name: from
+        type: integer
+      - in: query
+        name: keyword
+        type: string
+      - in: query
+        name: size
+        type: integer
+      - description: WithAccounts 加载账户信息的参数，为nil则不加载
+        in: query
+        name: with_accounts
+        type: boolean
+      - description: WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。
+        in: query
+        name: with_cmp_usages
+        type: boolean
+      - description: WithGPUUsages 指定是否加载GPU的使用信息。
+        in: query
+        name: with_gpu_usages
+        type: boolean
+      - description: WithHardwareInfo 指定是否加载硬件的元信息
+        in: query
+        name: with_hardware_info
+        type: boolean
+      - description: WithRemoteAccessUsages 指定是否加载正在远程登录这台服务器的用户信息。
+        in: query
+        name: with_remote_access_usages
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_models.ServerInfosResponse'
+      summary: 查询多个server信息。
+      tags:
+      - server
+    post:
+      parameters:
+      - description: serverCreateRequest
+        in: body
+        name: serverCreateRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_models.ServerCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_models.ServerCreateResponse'
+      summary: 创建server。
+      tags:
+      - server
+  /api/v1/servers/{host}/{port}:
+    get:
+      parameters:
+      - description: host
+        in: path
+        name: host
+        required: true
+        type: string
+      - description: port
+        in: path
+        name: port
+        required: true
+        type: integer
+      - description: WithAccounts 加载账户信息的参数，为nil则不加载
+        in: query
+        name: with_accounts
+        type: boolean
+      - description: WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。
+        in: query
+        name: with_cmp_usages
+        type: boolean
+      - description: WithGPUUsages 指定是否加载GPU的使用信息。
+        in: query
+        name: with_gpu_usages
+        type: boolean
+      - description: WithHardwareInfo 指定是否加载硬件的元信息
+        in: query
+        name: with_hardware_info
+        type: boolean
+      - description: WithRemoteAccessUsages 指定是否加载正在远程登录这台服务器的用户信息。
+        in: query
+        name: with_remote_access_usages
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_models.ServerInfoResponse'
+      summary: 查询server信息。
+      tags:
+      - server
   /api/v1/sessions/:
     delete:
       parameters:
-        - description: destroyRequest
-          in: body
-          name: destroyRequest
-          required: true
-          schema:
-            $ref: '#/definitions/api_models.SessionsDestroyRequest'
+      - description: destroyRequest
+        in: body
+        name: sessionsDestroyRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_models.SessionsDestroyRequest'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api_models.SessionsDestroyResponse'
+            $ref: '#/definitions/internal_models.SessionsDestroyResponse'
       summary: 退出session。（退出登录）
       tags:
-        - session
+      - session
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api_models.SessionsCheckResponse'
+            $ref: '#/definitions/internal_models.SessionsCheckResponse'
       summary: 检查登录状态。
       tags:
-        - session
+      - session
     post:
       parameters:
-        - description: createRequest
-          in: body
-          name: createRequest
-          required: true
-          schema:
-            $ref: '#/definitions/api_models.SessionsCreateRequest'
+      - description: createRequest
+        in: body
+        name: sessionsCreateRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_models.SessionsCreateRequest'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api_models.SessionsCreateResponse'
+            $ref: '#/definitions/internal_models.SessionsCreateResponse'
       summary: 创建session。（登录）
       tags:
-        - session
+      - session
   /api/v1/test/error_handler:
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: ""
       summary: test error handler
       tags:
-        - test
+      - test
   /api/v1/test/ping:
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: ""
       summary: ping
       tags:
-        - test
+      - test
   /api/v1/users/:
     get:
       parameters:
-        - in: query
-          name: from
-          type: integer
-        - in: query
-          name: searchKeyword
-          type: string
-        - in: query
-          name: size
-          type: integer
+      - in: query
+        name: from
+        type: integer
+      - in: query
+        name: searchKeyword
+        type: string
+      - in: query
+        name: size
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api_models.UsersInfosResponse'
+            $ref: '#/definitions/internal_models.UsersInfosResponse'
       summary: 获取多个用户信息，可以添加关键字对姓名搜索。
       tags:
-        - user
+      - user
     post:
       parameters:
-        - description: createRequest
-          in: body
-          name: createRequest
-          required: true
-          schema:
-            $ref: '#/definitions/api_models.UsersCreateRequest'
+      - description: userCreateRequest
+        in: body
+        name: userCreateRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_models.UsersCreateRequest'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api_models.UsersCreateResponse'
+            $ref: '#/definitions/internal_models.UsersCreateResponse'
       summary: 注册用户
       tags:
-        - user
+      - user
   /api/v1/users/{id}:
     get:
       parameters:
-        - description: id
-          in: path
-          name: id
-          required: true
-          type: integer
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api_models.UsersInfoResponse'
+            $ref: '#/definitions/internal_models.UsersInfoResponse'
       summary: 获取单个用户信息
       tags:
-        - user
+      - user
     put:
       parameters:
-        - description: id
-          in: path
-          name: id
-          required: true
-          type: integer
-        - description: updateRequest
-          in: body
-          name: updateRequest
-          required: true
-          schema:
-            $ref: '#/definitions/api_models.UsersUpdateRequest'
+      - description: id
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: updateRequest
+        in: body
+        name: updateRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_models.UsersUpdateRequest'
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/api_models.UsersUpdateResponse'
+            $ref: '#/definitions/internal_models.UsersUpdateResponse'
       summary: 修改用户信息
       tags:
-        - user
+      - user
 swagger: "2.0"

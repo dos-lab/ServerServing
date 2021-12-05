@@ -11,7 +11,7 @@ import (
 
 type UserDal struct{}
 
-func GetDal() UserDal {
+func GetUserDal() UserDal {
 	return UserDal{}
 }
 
@@ -66,7 +66,7 @@ func (UserDal) List(from, size int) ([]*daModels.User, int, *SErr.APIErr) {
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessage(res.Error.Error())
 	}
-	res = db.Model(&daModels.User{}).Order("CreatedAt desc").Offset(from).Limit(size).Find(&users)
+	res = db.Model(&daModels.User{}).Order("created_at desc").Offset(from).Limit(size).Find(&users)
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessage(res.Error.Error())
 	}

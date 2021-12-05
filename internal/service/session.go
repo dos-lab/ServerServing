@@ -37,7 +37,26 @@ func (*SessionsService) GetUserID(c *gin.Context) (int, *SErr.APIErr) {
 		return 0, nil
 	}
 	userID := intF.(uint)
+	if userID == 0 {
+		return 0, SErr.NeedLoginErr
+	}
 	return int(userID), nil
+}
+
+func (s *SessionsService) LoggedInAndIsAdmin(c *gin.Context) (int, *SErr.APIErr) {
+	userID, err := s.GetUserID(c)
+	if err != nil {
+		return 0, SErr.NeedLoginErr
+	}
+	usersSvc := GetUsersService()
+	isAdmin, err := usersSvc.IsAdmin(c, userID)
+	if err != nil {
+		return 0, err
+	}
+	if !isAdmin {
+		return 0, SErr.AdminOnlyActionErr
+	}
+	return userID, nil
 }
 
 func (*SessionsService) Destroy(c *gin.Context) {

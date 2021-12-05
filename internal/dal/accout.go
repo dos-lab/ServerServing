@@ -8,7 +8,7 @@ import (
 	"log"
 )
 
-type AccountDal struct {}
+type AccountDal struct{}
 
 func GetAccountDal() AccountDal {
 	return AccountDal{}
@@ -42,8 +42,7 @@ func (a AccountDal) List(Host string, Port, from, size uint) ([]*daModels.Accoun
 func (a AccountDal) Upsert(accounts []*daModels.Account) *SErr.APIErr {
 	db := mysql.GetDB()
 	res := db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "Host"}, {Name: "Port"}, {Name: "Name"}},
-		DoUpdates: clause.AssignmentColumns([]string{"Pwd"}),
+		UpdateAll: true,
 	}).Create(&accounts)
 	if res.Error != nil {
 		return SErr.InternalErr.CustomMessageF("更新/插入新的账户数据时出错，错误信息为：[%s]", res.Error.Error())

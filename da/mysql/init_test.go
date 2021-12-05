@@ -34,11 +34,11 @@ func initAccounts() {
 	accs := make([]*da_models.Account, 0, 10)
 	for i := 0; i < 10; i++ {
 		accs = append(accs, &da_models.Account{
-			Name:   strconv.FormatInt(int64(i), 10),
-			Pwd:    "123456",
+			Name: strconv.FormatInt(int64(i), 10),
+			Pwd:  "123456",
 			Server: da_models.Server{
-				Host:             "47.93.56.75",
-				Port:             22,
+				Host: "47.93.56.75",
+				Port: 22,
 			},
 		})
 	}
@@ -47,7 +47,7 @@ func initAccounts() {
 
 func selectServerAndAccounts(t *testing.T) {
 	var s []*da_models.Server
-	res := db.Model(&da_models.Server{}).Preload("AccountInfos").Where("host = ? and port = ?", "47.93.56.75", 22).Find(&s)
+	res := db.Model(&da_models.Server{}).Preload("Accounts").Where("host = ? and port = ?", "47.93.56.75", 22).Find(&s)
 	if res.Error != nil {
 		t.Fatal(res.Error)
 		return
