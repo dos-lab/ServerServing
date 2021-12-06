@@ -17,6 +17,7 @@ func Register(r *gin.Engine) {
 	usersRouter := rg.Group(prefixUser)
 	sessionsRouter := rg.Group(prefixSession)
 	serversRouter := rg.Group(prefixServer)
+	serversAccountsRouter := rg.Group(prefixServerAccounts)
 
 	testAPI := testAPI{}
 	testRouter.GET("error_handler", format.Wrap(testAPI.testErrorHandler()))
@@ -38,6 +39,12 @@ func Register(r *gin.Engine) {
 	serversRouter.DELETE("", format.Wrap(serversAPI.delete()))
 	serversRouter.GET(":host/:port", format.Wrap(serversAPI.info()))
 	serversRouter.GET("", format.Wrap(serversAPI.infos()))
+
+	serversAccountsAPI := serversAccountsAPI{}
+	serversAccountsRouter.POST("", format.Wrap(serversAccountsAPI.create()))
+	serversAccountsRouter.GET("/backupDir", format.Wrap(serversAccountsAPI.backupDir()))
+	serversAccountsRouter.DELETE("", format.Wrap(serversAccountsAPI.delete()))
+	serversAccountsRouter.PUT("", format.Wrap(serversAccountsAPI.update()))
 }
 
 const (
@@ -45,6 +52,7 @@ const (
 	prefixUser    = "users"
 	prefixSession = "sessions"
 	prefixServer = "servers"
+	prefixServerAccounts = "servers/accounts/"
 )
 
 //type sourceCodeAPI struct{}
@@ -130,6 +138,32 @@ func (serversAPI) info() format.JSONHandler {
 func (serversAPI) infos() format.JSONHandler {
 	return func(c *gin.Context) (*format.JSONRespFormat, *err.APIErr) {
 		return handler.GetServerHandler().Infos(c)
+	}
+}
+
+type serversAccountsAPI struct {}
+
+func (serversAccountsAPI) create() format.JSONHandler {
+	return func(c *gin.Context) (*format.JSONRespFormat, *err.APIErr) {
+		return handler.GetServerAccountsHandler().Create(c)
+	}
+}
+
+func (serversAccountsAPI) backupDir() format.JSONHandler {
+	return func(c *gin.Context) (*format.JSONRespFormat, *err.APIErr) {
+		return handler.GetServerAccountsHandler().BackupDirInfo(c)
+	}
+}
+
+func (serversAccountsAPI) delete() format.JSONHandler {
+	return func(c *gin.Context) (*format.JSONRespFormat, *err.APIErr) {
+		return handler.GetServerAccountsHandler().Delete(c)
+	}
+}
+
+func (serversAccountsAPI) update() format.JSONHandler {
+	return func(c *gin.Context) (*format.JSONRespFormat, *err.APIErr) {
+		return handler.GetServerAccountsHandler().Update(c)
 	}
 }
 

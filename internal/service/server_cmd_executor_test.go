@@ -28,7 +28,7 @@ func TestSSHExecutorService_CreateAccount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, e := s.AddAccount("user_created_by_golang", "123456")
+	_, e := s.AddAccount("user_created_by_golang_1", "123456")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -40,7 +40,7 @@ func TestSSHExecutorService_DeleteAccount(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, e := s.DeleteAccount("user_created_by_golang")
+	_, e := s.DeleteAccount("user_created_by_golang_1")
 	if e != nil {
 		t.Fatal(e)
 	}

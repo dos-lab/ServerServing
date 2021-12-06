@@ -20,11 +20,21 @@ func GetServersService() *ServersService {
 	return &ServersService{}
 }
 
+func (s *ServersService) Close() {
+	if s.ES != nil {
+		err := s.ES.Close()
+		if err != nil {
+			log.Printf("ServersService Close ES failed, ES=[%s]", s.ES)
+		}
+	}
+}
+
 func (s *ServersService) Create(c *gin.Context, Host string, Port uint, OSType daModels.OSType, adminAccountName, adminAccountPwd string) *SErr.APIErr {
-	_, err := GetExecutorService(Host, Port, OSType, adminAccountName, adminAccountPwd)
+	es, err := GetExecutorService(Host, Port, OSType, adminAccountName, adminAccountPwd)
 	if err != nil {
 		return err
 	}
+	defer es.Close()
 	// 能够联通该服务器，则调用MySQL创建。
 	serverDal := dal.GetServerDal()
 	err = serverDal.Create(&daModels.Server{
@@ -159,10 +169,7 @@ func (s *ServersService) combineAccounts(es ExecutorService, arg *internal_model
 	if arg.WithAccounts == false {
 		return
 	}
-	serverInfo.AccountInfos = &internal_models.ServerAccountInfos{
-		ServerInfoCommon: &internal_models.ServerInfoCommon{},
-		Accounts:         make([]*internal_models.Account, 0),
-	}
+	serverInfo.AccountInfos.ServerInfoCommon = &internal_models.ServerInfoCommon{}
 	getAccountListResp, err := es.GetAccountList()
 	serverInfo.AccountInfos.Output = getAccountListResp.Output
 	if err != nil {

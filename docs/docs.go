@@ -153,6 +153,128 @@ var doc = `{
                 }
             }
         },
+        "/api/v1/servers/accounts": {
+            "put": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "server_account"
+                ],
+                "summary": "更新，恢复一个服务器的账号。",
+                "parameters": [
+                    {
+                        "description": "serverAccountUpdateRequest",
+                        "name": "serverAccountUpdateRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerAccountUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerAccountUpdateResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "server_account"
+                ],
+                "summary": "创建一个服务器的sudo账号。",
+                "parameters": [
+                    {
+                        "description": "serverAccountCreateRequest",
+                        "name": "serverAccountCreateRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerAccountCreateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerAccountCreateResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "server_account"
+                ],
+                "summary": "删除一个服务器的账号。",
+                "parameters": [
+                    {
+                        "description": "serverAccountDeleteRequest",
+                        "name": "serverAccountDeleteRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerAccountDeleteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerAccountDeleteResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/servers/accounts/backupDir": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "server_account"
+                ],
+                "summary": "获取一个账户的backup文件夹的相关信息",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "name": "account_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "host",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "name": "port",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerAccountBackupDirResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/servers/{host}/{port}": {
             "get": {
                 "produces": [
@@ -504,6 +626,65 @@ var doc = `{
                 }
             }
         },
+        "internal_models.ServerAccountBackupDirResponse": {
+            "type": "object",
+            "properties": {
+                "backup_dir": {
+                    "type": "string"
+                },
+                "dir_exists": {
+                    "type": "boolean"
+                },
+                "path_exists": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_models.ServerAccountCreateRequest": {
+            "type": "object",
+            "properties": {
+                "account_name": {
+                    "type": "string"
+                },
+                "account_pwd": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_models.ServerAccountCreateResponse": {
+            "type": "object",
+            "properties": {
+                "backup_dir": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerAccountDeleteRequest": {
+            "type": "object",
+            "properties": {
+                "account_name": {
+                    "type": "string"
+                },
+                "backup": {
+                    "type": "boolean"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_models.ServerAccountDeleteResponse": {
+            "type": "object"
+        },
         "internal_models.ServerAccountInfos": {
             "type": "object",
             "properties": {
@@ -520,6 +701,34 @@ var doc = `{
                     "type": "string"
                 }
             }
+        },
+        "internal_models.ServerAccountUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "account_name": {
+                    "type": "string"
+                },
+                "account_pwd": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "recover": {
+                    "description": "Recover 该账户是从删除的账户中恢复",
+                    "type": "boolean"
+                },
+                "recoverBackup": {
+                    "description": "RecoverBackup 指定是否要恢复backup的用户目录文件夹。",
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_models.ServerAccountUpdateResponse": {
+            "type": "object"
         },
         "internal_models.ServerBasic": {
             "type": "object",

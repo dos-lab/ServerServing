@@ -101,6 +101,8 @@ type ExecutorService interface {
 
 	GetRemoteAccessInfos() (*ExecutorServiceRemoteAccessResp, *SErr.APIErr)
 
+	Close() error
+
 	String() string
 }
 
@@ -881,6 +883,15 @@ func (s *LinuxSSHExecutorServiceCommon) GetAccountList() (*ExecutorServiceGetAcc
 	switch s.OSType {
 	case Ubuntu:
 		return s.ubuntuService.GetAccountList()
+	default:
+		panic("Unimplemented")
+	}
+}
+
+func (s *LinuxSSHExecutorServiceCommon) Close() error {
+	switch s.OSType {
+	case Ubuntu:
+		return s.ubuntuService.Close()
 	default:
 		panic("Unimplemented")
 	}

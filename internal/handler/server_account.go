@@ -8,10 +8,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ServerAccountHandler struct {}
+type ServerAccountsHandler struct {}
 
-func GetServerAccountHandler() ServerAccountHandler {
-	return ServerAccountHandler{}
+func GetServerAccountsHandler() ServerAccountsHandler {
+	return ServerAccountsHandler{}
 }
 
 // Create
@@ -21,7 +21,7 @@ func GetServerAccountHandler() ServerAccountHandler {
 // @Router /api/v1/servers/accounts [post]
 // @Param serverAccountCreateRequest body internal_models.ServerAccountCreateRequest true "serverAccountCreateRequest"
 // @Success 200 {object} internal_models.ServerAccountCreateResponse
-func (ServerAccountHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (ServerAccountsHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
 	req := &models.ServerAccountCreateRequest{}
 	e := c.ShouldBind(req)
 	if e != nil {
@@ -29,6 +29,7 @@ func (ServerAccountHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SEr
 	}
 
 	serversSvc := service.GetServersService()
+	defer serversSvc.Close()
 	sErr := serversSvc.AddAccount(c, req.Host, req.Port, req.AccountName, req.AccountPwd)
 	if sErr != nil {
 		return nil, sErr
@@ -43,7 +44,7 @@ func (ServerAccountHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SEr
 // @Router /api/v1/servers/accounts/backupDir [get]
 // @Param serverAccountBackupDirRequest query internal_models.ServerAccountBackupDirRequest true "serverAccountBackupDirRequest"
 // @Success 200 {object} internal_models.ServerAccountBackupDirResponse
-func (ServerAccountHandler) BackupDirInfo(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (ServerAccountsHandler) BackupDirInfo(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
 	req := &models.ServerAccountBackupDirRequest{}
 	e := c.ShouldBindQuery(req)
 	if e != nil {
@@ -51,6 +52,7 @@ func (ServerAccountHandler) BackupDirInfo(c *gin.Context) (*format.JSONRespForma
 	}
 
 	serversSvc := service.GetServersService()
+	defer serversSvc.Close()
 	backupInfo, err := serversSvc.BackupDirInfo(c, req.Host, req.Port, req.AccountName)
 	if err != nil {
 		return nil, err
@@ -67,7 +69,7 @@ func (ServerAccountHandler) BackupDirInfo(c *gin.Context) (*format.JSONRespForma
 // @Router /api/v1/servers/accounts [delete]
 // @Param serverAccountDeleteRequest body internal_models.ServerAccountDeleteRequest true "serverAccountDeleteRequest"
 // @Success 200 {object} internal_models.ServerAccountDeleteResponse
-func (ServerAccountHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (ServerAccountsHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
 	req := &models.ServerAccountDeleteRequest{}
 	e := c.ShouldBind(req)
 	if e != nil {
@@ -81,11 +83,12 @@ func (ServerAccountHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SEr
 	}
 
 	serversSvc := service.GetServersService()
+	defer serversSvc.Close()
 	targetDir, sErr := serversSvc.DeleteAccount(c, req.Host, req.Port, req.AccountName, req.Backup)
 	if sErr != nil {
 		return nil, sErr
 	}
-	return format.SimpleOKResp(&models.ServerAccountCreateResponse{
+	return format.SimpleOKResp(&models.ServerAccountDeleteResponse{
 		BackupDir: targetDir,
 	}), nil
 }
@@ -98,7 +101,7 @@ func (ServerAccountHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SEr
 // @Router /api/v1/servers/accounts [put]
 // @Param serverAccountUpdateRequest body internal_models.ServerAccountUpdateRequest true "serverAccountUpdateRequest"
 // @Success 200 {object} internal_models.ServerAccountUpdateResponse
-func (s ServerAccountHandler) Update(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (s ServerAccountsHandler) Update(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
 	req := &models.ServerAccountUpdateRequest{}
 	e := c.ShouldBind(req)
 	if e != nil {
@@ -118,8 +121,9 @@ func (s ServerAccountHandler) Update(c *gin.Context) (*format.JSONRespFormat, *S
 	return format.SimpleOKResp(res), nil
 }
 
-func (s ServerAccountHandler) recover(c *gin.Context, req *models.ServerAccountUpdateRequest) (*models.ServerAccountUpdateResponse, *SErr.APIErr) {
+func (s ServerAccountsHandler) recover(c *gin.Context, req *models.ServerAccountUpdateRequest) (*models.ServerAccountUpdateResponse, *SErr.APIErr) {
 	serversSvc := service.GetServersService()
+	defer serversSvc.Close()
 	sErr := serversSvc.RecoverAccount(c, req.Host, req.Port, req.AccountName, req.AccountPwd, req.RecoverBackup)
 	if sErr != nil {
 		return nil, sErr
@@ -127,8 +131,9 @@ func (s ServerAccountHandler) recover(c *gin.Context, req *models.ServerAccountU
 	return &models.ServerAccountUpdateResponse{}, nil
 }
 
-func (ServerAccountHandler) update(c *gin.Context, req *models.ServerAccountUpdateRequest) (*models.ServerAccountUpdateResponse, *SErr.APIErr) {
+func (ServerAccountsHandler) update(c *gin.Context, req *models.ServerAccountUpdateRequest) (*models.ServerAccountUpdateResponse, *SErr.APIErr) {
 	serversSvc := service.GetServersService()
+	defer serversSvc.Close()
 	sErr := serversSvc.UpdateAccount(c, req.Host, req.Port, req.AccountName, req.AccountPwd)
 	if sErr != nil {
 		return nil, sErr

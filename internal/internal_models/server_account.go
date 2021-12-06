@@ -8,7 +8,7 @@ type ServerAccountCreateRequest struct {
 }
 
 type ServerAccountCreateResponse struct {
-	BackupDir string `json:"backup_dir"`
+
 }
 
 type ServerAccountDeleteRequest struct {
@@ -19,7 +19,7 @@ type ServerAccountDeleteRequest struct {
 }
 
 type ServerAccountDeleteResponse struct {
-
+	BackupDir string `json:"backup_dir"`
 }
 
 type ServerAccountUpdateRequest struct {

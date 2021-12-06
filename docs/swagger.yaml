@@ -32,6 +32,44 @@ definitions:
       updated_at:
         type: string
     type: object
+  internal_models.ServerAccountBackupDirResponse:
+    properties:
+      backup_dir:
+        type: string
+      dir_exists:
+        type: boolean
+      path_exists:
+        type: boolean
+    type: object
+  internal_models.ServerAccountCreateRequest:
+    properties:
+      account_name:
+        type: string
+      account_pwd:
+        type: string
+      host:
+        type: string
+      port:
+        type: integer
+    type: object
+  internal_models.ServerAccountCreateResponse:
+    properties:
+      backup_dir:
+        type: string
+    type: object
+  internal_models.ServerAccountDeleteRequest:
+    properties:
+      account_name:
+        type: string
+      backup:
+        type: boolean
+      host:
+        type: string
+      port:
+        type: integer
+    type: object
+  internal_models.ServerAccountDeleteResponse:
+    type: object
   internal_models.ServerAccountInfos:
     properties:
       accounts:
@@ -42,6 +80,25 @@ definitions:
         $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
       output:
         type: string
+    type: object
+  internal_models.ServerAccountUpdateRequest:
+    properties:
+      account_name:
+        type: string
+      account_pwd:
+        type: string
+      host:
+        type: string
+      port:
+        type: integer
+      recover:
+        description: Recover 该账户是从删除的账户中恢复
+        type: boolean
+      recoverBackup:
+        description: RecoverBackup 指定是否要恢复backup的用户目录文件夹。
+        type: boolean
+    type: object
+  internal_models.ServerAccountUpdateResponse:
     type: object
   internal_models.ServerBasic:
     properties:
@@ -467,6 +524,83 @@ paths:
       summary: 查询server信息。
       tags:
       - server
+  /api/v1/servers/accounts:
+    delete:
+      parameters:
+      - description: serverAccountDeleteRequest
+        in: body
+        name: serverAccountDeleteRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_models.ServerAccountDeleteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_models.ServerAccountDeleteResponse'
+      summary: 删除一个服务器的账号。
+      tags:
+      - server_account
+    post:
+      parameters:
+      - description: serverAccountCreateRequest
+        in: body
+        name: serverAccountCreateRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_models.ServerAccountCreateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_models.ServerAccountCreateResponse'
+      summary: 创建一个服务器的sudo账号。
+      tags:
+      - server_account
+    put:
+      parameters:
+      - description: serverAccountUpdateRequest
+        in: body
+        name: serverAccountUpdateRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_models.ServerAccountUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_models.ServerAccountUpdateResponse'
+      summary: 更新，恢复一个服务器的账号。
+      tags:
+      - server_account
+  /api/v1/servers/accounts/backupDir:
+    get:
+      parameters:
+      - in: query
+        name: account_name
+        type: string
+      - in: query
+        name: host
+        type: string
+      - in: query
+        name: port
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_models.ServerAccountBackupDirResponse'
+      summary: 获取一个账户的backup文件夹的相关信息
+      tags:
+      - server_account
   /api/v1/sessions/:
     delete:
       parameters:

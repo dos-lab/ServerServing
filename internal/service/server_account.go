@@ -43,7 +43,7 @@ func (s *ServersService) doAddAccount(Host string, Port uint, AccountName, Accou
 	if s.ES == nil {
 		panic(fmt.Sprintf("ServersService doAddAccount s.ES == nil, this method must called with ES inited."))
 	}
-	resp, err := s.ES.AddAccount(AccountPwd, AccountPwd)
+	resp, err := s.ES.AddAccount(AccountName, AccountPwd)
 	if err != nil {
 		log.Printf("ServersService AddAccount Failed ES=[%s], AccountName=[%s], AccountPwd=[%s], resp=[%s]", s.ES, AccountName, AccountPwd, util.Pretty(resp))
 		msg := fmt.Sprintf("添加账户失败！出错信息为：err=[%s]", err.Error())
