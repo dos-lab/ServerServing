@@ -33,7 +33,7 @@ const (
 func OpenExecutorService(Host string, Port uint, osType daModels.OSType, adminAccountName, adminAccountPwd string) (ExecutorService, *SErr.APIErr) {
 	switch osType {
 	case daModels.OSTypeLinux:
-		return GetLinuxSSHExecutorService(Host, Port, adminAccountName, adminAccountPwd)
+		return OpenLinuxSSHExecutorService(Host, Port, adminAccountName, adminAccountPwd)
 	default:
 		panic("Unimplemented")
 	}
@@ -66,6 +66,7 @@ var loadCmdScript = func() func(path, name string) (string, *SErr.APIErr) {
 		bs, err := ioutil.ReadAll(f)
 		if err != nil {
 			log.Printf("loadCmdScript ioutil.readAll failed")
+			return "", SErr.InternalErr.CustomMessageF("loadCmdScript加载命令行数据失败！err=[%s]", err.Error())
 		}
 		cmd := string(bs)
 		cache[cmdKey] = cmd
@@ -76,8 +77,6 @@ var loadCmdScript = func() func(path, name string) (string, *SErr.APIErr) {
 // ExecutorService 描述远端命令组成的的外部可用接口。目前只包括Linux服务器。
 // 其中每个接口的第一个返回参数永远都是从服务器返回的真实output，用于在复杂情况下debug，或者直接给用户展示它的内容。
 type ExecutorService interface {
-	// Move FileExists DirExists PathExists Mkdir MkdirIfNotExists GetCPUMemProcessesUsages GetGPUUsages
-	// 均为上层完整方法，面对Linux各平台通用。
 	Move(src, dst string, force bool) (*ExecutorServiceVoidResp, *SErr.APIErr)
 	FileExists(filepath string) (*ExecutorServiceExistsResp, *SErr.APIErr)
 	DirExists(dirPath string) (*ExecutorServiceExistsResp, *SErr.APIErr)
@@ -102,7 +101,7 @@ type ExecutorService interface {
 
 	GetRemoteAccessInfos() (*ExecutorServiceRemoteAccessResp, *SErr.APIErr)
 
-	Close() error
+	io.Closer
 
 	String() string
 }
@@ -142,7 +141,7 @@ type ExecutorServiceGetAccountHomeDirResp struct {
 
 type ExecutorServiceGetAccountListResp struct {
 	ExecutorServiceRespCommon
-	Accounts []*internal_models.Account
+	Accounts []*internal_models.ServerAccount
 }
 
 type ExecutorServiceCPUMemProcessesUsagesResp struct {
@@ -178,10 +177,10 @@ type ExecutorServiceGetBackupDirResp struct {
 	DirExists  bool
 }
 
-// GetLinuxSSHExecutorService
+// OpenLinuxSSHExecutorService
 // 获取一个到某服务器的SSH Executor服务实例。建立新的ssh连接。在一次http请求中复用这个服务可以减少连接的创建数量。
 // 目前不确定是否可以在多个请求间共享，暂时不太建议这么做（需要测试）。这容易引起并发问题，反正总的并发量不高，目前先随便做一做。
-func GetLinuxSSHExecutorService(host string, port uint, account, pwd string) (ExecutorService, *SErr.APIErr) {
+func OpenLinuxSSHExecutorService(host string, port uint, account, pwd string) (ExecutorService, *SErr.APIErr) {
 	SSHConn, err := ConnectLinuxSSH(host, port, account, pwd)
 	if err != nil {
 		return nil, SErr.SSHConnectionErr.CustomMessageF("与该服务器建立SSH连接失败！服务器地址为%s:%d，用户名为：%s，密码为：%s", host, port, account, pwd)
@@ -255,7 +254,7 @@ func NewLinuxSSHExecutorServiceTemplate(osType LinuxOSType, Account string, Pwd 
 }
 
 func (s *LinuxSSHExecutorServiceTemplate) String() string {
-	return fmt.Sprintf("LinuxSSHExecutorServiceTemplate=[Host=%s, Port=%d, Account=%s, Pwd=%s]", s.Host, s.Port, s.Account, s.Pwd)
+	return fmt.Sprintf("LinuxSSHExecutorServiceTemplate=[Host=%s, Port=%d, ServerAccount=%s, Pwd=%s, OSType=%s]", s.Host, s.Port, s.Account, s.Pwd, s.OSType)
 }
 
 // Move 移动文件或文件夹
@@ -880,7 +879,7 @@ func (s *LinuxSSHExecutorServiceTemplate) GetAccountList() (*ExecutorServiceGetA
 }
 
 func (s *LinuxSSHExecutorServiceTemplate) Close() error {
-	panic("Template Method Call Is Not Allowed.")
+	return s.SSHConn.Close()
 }
 
 type UbuntuSSHExecutorService struct {
@@ -894,14 +893,6 @@ func NewUbuntuSSHExecutorService() *UbuntuSSHExecutorService {
 	return &UbuntuSSHExecutorService{
 		ubuntuPath: ubuntu,
 	}
-}
-
-func (s *UbuntuSSHExecutorService) String() string {
-	return "UbuntuSSHExecutorService"
-}
-
-func (s *UbuntuSSHExecutorService) Close() error {
-	return s.SSHConn.Close()
 }
 
 // LoadSudoersLines 查询/etc/sudoers文件，返回去掉注释的每行内容
@@ -1049,7 +1040,7 @@ func (s *UbuntuSSHExecutorService) GetAccountList() (*ExecutorServiceGetAccountL
 	reg := regexp.MustCompile(`^(.+?)\|([0-9]+?)\|([0-9]+?)$`)
 
 	lines := util.SplitLine(output)
-	accounts := make([]*internal_models.Account, 0, 4)
+	accounts := make([]*internal_models.ServerAccount, 0, 4)
 	for _, line := range lines {
 		log.Printf("UbuntuSSHExecutorService=[%s] GetAccountList, line=[%s]", s, line)
 		subs := reg.FindStringSubmatch(line)
@@ -1067,7 +1058,7 @@ func (s *UbuntuSSHExecutorService) GetAccountList() (*ExecutorServiceGetAccountL
 		if err != nil {
 			continue
 		}
-		accounts = append(accounts, &internal_models.Account{
+		accounts = append(accounts, &internal_models.ServerAccount{
 			Host: s.SSHConn.Host,
 			Port: s.SSHConn.Port,
 			Name: account,
@@ -1144,7 +1135,7 @@ func ConnectLinuxSSH(Host string, Port uint, account, password string) (*LinuxSS
 }
 
 func (conn *LinuxSSHConnection) String() string {
-	return fmt.Sprintf("LinuxSSHConnection=[Host=%s, Port=%d, Account=%s, Password=%s]", conn.Host, conn.Port, conn.Account, conn.Password)
+	return fmt.Sprintf("LinuxSSHConnection=[Host=%s, Port=%d, ServerAccount=%s, Password=%s]", conn.Host, conn.Port, conn.Account, conn.Password)
 }
 
 func (conn *LinuxSSHConnection) Close() error {

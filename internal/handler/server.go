@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"ServerServing/api/format"
 	SErr "ServerServing/err"
 	models "ServerServing/internal/internal_models"
 	"ServerServing/internal/service"
@@ -22,7 +21,7 @@ func GetServerHandler() *ServerHandler {
 // @Router /api/v1/servers/ [post]
 // @Param serverCreateRequest body internal_models.ServerCreateRequest true "serverCreateRequest"
 // @Success 200 {object} internal_models.ServerCreateResponse
-func (ServerHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (ServerHandler) Create(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.ServerCreateRequest{}
 	e := c.ShouldBind(req)
 	if e != nil {
@@ -41,7 +40,7 @@ func (ServerHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.APIEr
 		return nil, err
 	}
 
-	return format.SimpleOKResp(&models.ServerCreateResponse{}), nil
+	return &models.ServerCreateResponse{}, nil
 }
 
 // Delete
@@ -51,7 +50,7 @@ func (ServerHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.APIEr
 // @Router /api/v1/servers/ [delete]
 // @Param serverDeleteRequest body internal_models.ServerDeleteRequest true "serverDeleteRequest"
 // @Success 200 {object} internal_models.ServerDeleteResponse
-func (ServerHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (ServerHandler) Delete(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.ServerDeleteRequest{}
 	e := c.ShouldBind(req)
 	if e != nil {
@@ -70,7 +69,7 @@ func (ServerHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SErr.APIEr
 		return nil, err
 	}
 
-	return format.SimpleOKResp(&models.ServerCreateResponse{}), nil
+	return &models.ServerCreateResponse{}, nil
 }
 
 // Info
@@ -82,7 +81,7 @@ func (ServerHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SErr.APIEr
 // @param port path uint true "port"
 // @Param serverInfoRequest query internal_models.ServerInfoRequest true "serverInfoRequest"
 // @Success 200 {object} internal_models.ServerInfoResponse
-func (ServerHandler) Info(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (ServerHandler) Info(c *gin.Context) (interface{}, *SErr.APIErr) {
 	host := c.Param("host")
 	portStr := c.Param("port")
 	port, err := util.ParseInt(portStr)
@@ -100,9 +99,9 @@ func (ServerHandler) Info(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr)
 	if sErr != nil {
 		return nil, sErr
 	}
-	return format.SimpleOKResp(&models.ServerInfoResponse{
+	return &models.ServerInfoResponse{
 		ServerInfo: info,
-	}), nil
+	}, nil
 }
 
 // Infos
@@ -112,7 +111,7 @@ func (ServerHandler) Info(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr)
 // @Router /api/v1/servers/ [get]
 // @Param serverInfosRequest query internal_models.ServerInfosRequest true "serverInfosRequest"
 // @Success 200 {object} internal_models.ServerInfosResponse
-func (ServerHandler) Infos(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (ServerHandler) Infos(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.ServerInfosRequest{}
 	e := c.ShouldBindQuery(req)
 	if e != nil {
@@ -124,8 +123,8 @@ func (ServerHandler) Infos(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr
 	if sErr != nil {
 		return nil, sErr
 	}
-	return format.SimpleOKResp(&models.ServerInfosResponse{
+	return &models.ServerInfosResponse{
 		ServerInfos: infos,
 		TotalCount:  totalCount,
-	}), nil
+	}, nil
 }

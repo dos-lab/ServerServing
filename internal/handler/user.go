@@ -1,7 +1,6 @@
 package handler
 
 import (
-	apiFormat "ServerServing/api/format"
 	daModels "ServerServing/da/mysql/da_models"
 	SErr "ServerServing/err"
 	models "ServerServing/internal/internal_models"
@@ -23,7 +22,7 @@ func GetUserHandler() *UsersHandler {
 // @Router /api/v1/users/ [post]
 // @Param userCreateRequest body internal_models.UsersCreateRequest true "userCreateRequest"
 // @Success 200 {object} internal_models.UsersCreateResponse
-func (h UsersHandler) Create(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.APIErr) {
+func (h UsersHandler) Create(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.UsersCreateRequest{}
 	err := c.ShouldBind(req)
 	if err != nil {
@@ -34,7 +33,7 @@ func (h UsersHandler) Create(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.A
 	if sErr != nil {
 		return nil, sErr
 	}
-	return apiFormat.SimpleOKResp(&models.UsersCreateResponse{}), nil
+	return &models.UsersCreateResponse{}, nil
 }
 
 // Info
@@ -44,7 +43,7 @@ func (h UsersHandler) Create(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.A
 // @Router /api/v1/users/{id} [get]
 // @param id path int true "id"
 // @Success 200 {object} internal_models.UsersInfoResponse
-func (h UsersHandler) Info(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.APIErr) {
+func (h UsersHandler) Info(c *gin.Context) (interface{}, *SErr.APIErr) {
 	userIDStr := c.Param("id")
 	userID, err := util.ParseInt(userIDStr)
 	if err != nil {
@@ -57,9 +56,9 @@ func (h UsersHandler) Info(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.API
 	if sErr != nil {
 		return nil, sErr
 	}
-	return apiFormat.SimpleOKResp(&models.UsersInfoResponse{
+	return &models.UsersInfoResponse{
 		User: h.packUser(user),
-	}), nil
+	}, nil
 }
 
 // Infos
@@ -69,7 +68,7 @@ func (h UsersHandler) Info(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.API
 // @Router /api/v1/users/ [get]
 // @Param userInfoRequest query internal_models.UsersInfosRequest true "userInfosRequest"
 // @Success 200 {object} internal_models.UsersInfosResponse
-func (h UsersHandler) Infos(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.APIErr) {
+func (h UsersHandler) Infos(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.UsersInfosRequest{}
 	err := c.ShouldBindQuery(req)
 	if err != nil {
@@ -79,10 +78,10 @@ func (h UsersHandler) Infos(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.AP
 	if sErr != nil {
 		return nil, sErr
 	}
-	return apiFormat.SimpleOKResp(&models.UsersInfosResponse{
+	return &models.UsersInfosResponse{
 		Infos:      h.packUsers(users),
 		TotalCount: totalCount,
-	}), nil
+	}, nil
 }
 
 // Update
@@ -93,7 +92,7 @@ func (h UsersHandler) Infos(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.AP
 // @param id path uint true "id"
 // @Param updateRequest body internal_models.UsersUpdateRequest true "updateRequest"
 // @Success 200 {object} internal_models.UsersUpdateResponse
-func (h UsersHandler) Update(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.APIErr) {
+func (h UsersHandler) Update(c *gin.Context) (interface{}, *SErr.APIErr) {
 	targetIDStr := c.Param("id")
 	targetID, err := util.ParseInt(targetIDStr)
 	if err != nil {
@@ -111,7 +110,7 @@ func (h UsersHandler) Update(c *gin.Context) (*apiFormat.JSONRespFormat, *SErr.A
 	if sErr != nil {
 		return nil, sErr
 	}
-	return apiFormat.SimpleOKResp(&models.UsersUpdateResponse{}), nil
+	return &models.UsersUpdateResponse{}, nil
 }
 
 func (h UsersHandler) packUser(user *daModels.User) *models.User {

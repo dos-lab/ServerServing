@@ -7,8 +7,10 @@ definitions:
         description: Valid is true if Time is not NULL
         type: boolean
     type: object
-  internal_models.Account:
+  internal_models.ServerAccount:
     properties:
+      backup_dir_info:
+        $ref: '#/definitions/internal_models.ServerAccountBackupDirInfo'
       created_at:
         type: string
       deleted_at:
@@ -32,12 +34,29 @@ definitions:
       updated_at:
         type: string
     type: object
+  internal_models.ServerAccountBackupDirInfo:
+    properties:
+      backup_dir:
+        type: string
+      dir_exists:
+        type: boolean
+      failed_info:
+        $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
+      output:
+        type: string
+      path_exists:
+        type: boolean
+    type: object
   internal_models.ServerAccountBackupDirResponse:
     properties:
       backup_dir:
         type: string
       dir_exists:
         type: boolean
+      failed_info:
+        $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
+      output:
+        type: string
       path_exists:
         type: boolean
     type: object
@@ -53,9 +72,6 @@ definitions:
         type: integer
     type: object
   internal_models.ServerAccountCreateResponse:
-    properties:
-      backup_dir:
-        type: string
     type: object
   internal_models.ServerAccountDeleteRequest:
     properties:
@@ -69,12 +85,15 @@ definitions:
         type: integer
     type: object
   internal_models.ServerAccountDeleteResponse:
+    properties:
+      backup_dir:
+        type: string
     type: object
   internal_models.ServerAccountInfos:
     properties:
       accounts:
         items:
-          $ref: '#/definitions/internal_models.Account'
+          $ref: '#/definitions/internal_models.ServerAccount'
         type: array
       failed_info:
         $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
@@ -147,10 +166,10 @@ definitions:
     properties:
       mem_usage:
         description: MemUsage 总内存使用（比例：如3600MB/8000MB）
-        type: string
+        type: number
       user_cpu_usage:
         description: UserProcCPUUsage 记录用户进程的CPU使用率。（总比例）
-        type: string
+        type: number
     type: object
   internal_models.ServerCPUs:
     properties:
@@ -277,7 +296,7 @@ definitions:
         type: string
       cpu_usage:
         description: CPU利用率。
-        type: string
+        type: number
       failed_info:
         $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
       gpu_usage:
@@ -285,7 +304,7 @@ definitions:
         type: string
       mem_usage:
         description: 内存利用率
-        type: string
+        type: number
       output:
         type: string
       owner_account_name:
@@ -437,6 +456,10 @@ paths:
           in: query
           name: with_accounts
           type: boolean
+        - description: WithBackupDirInfo 指定是否加载用户备份文件夹的信息。
+          in: query
+          name: with_backup_dir_info
+          type: boolean
         - description: WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。
           in: query
           name: with_cmp_usages
@@ -497,6 +520,10 @@ paths:
         - description: WithAccounts 加载账户信息的参数，为nil则不加载
           in: query
           name: with_accounts
+          type: boolean
+        - description: WithBackupDirInfo 指定是否加载用户备份文件夹的信息。
+          in: query
+          name: with_backup_dir_info
           type: boolean
         - description: WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。
           in: query

@@ -31,11 +31,7 @@ func wrapJSONHandler(handler JSONHandler) func(c *gin.Context) {
 			Err(c, e)
 			return
 		}
-		if resp == nil {
-			c.JSON(http.StatusOK, SimpleOKResp(nil))
-			return
-		}
-		c.JSON(resp.Status, NewJSONResp(resp.Status, resp.Message, resp.Data))
+		c.JSON(http.StatusOK, SimpleOKResp(resp))
 	}
 }
 

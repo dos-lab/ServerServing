@@ -52,8 +52,8 @@ func (s *ServersService) Delete(c *gin.Context, Host string, Port uint) *SErr.AP
 	return nil
 }
 
-// BasicInfo 从MySQL获取服务器的基本数据
-func (s *ServersService) BasicInfo(c *gin.Context, Host string, Port uint) (*internal_models.ServerBasic, []*internal_models.Account, *SErr.APIErr) {
+// basicInfo 从MySQL获取服务器的基本数据
+func (s *ServersService) basicInfo(c *gin.Context, Host string, Port uint) (*internal_models.ServerBasic, []*internal_models.ServerAccount, *SErr.APIErr) {
 	// 每个请求内部共享一次SSH session
 	// 需要加载Basic的信息，与Account的加载同时进行。
 	// 从MySQL加载初步的Server信息，获取该服务器的管理员账号与密码，以便后续的信息获取。
@@ -68,7 +68,7 @@ func (s *ServersService) BasicInfo(c *gin.Context, Host string, Port uint) (*int
 
 // Info 获取一个Server数据。
 func (s *ServersService) Info(c *gin.Context, Host string, Port uint, arg *internal_models.LoadServerDetailArg) (*internal_models.ServerInfo, *SErr.APIErr) {
-	serverBasic, accounts, err := s.BasicInfo(c, Host, Port)
+	serverBasic, accounts, err := s.basicInfo(c, Host, Port)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (s *ServersService) Info(c *gin.Context, Host string, Port uint, arg *inter
 		Accounts: accounts,
 	}
 	// 第二步，初始化到该服务器的连接，如果连接失败，则直接返回错误。
-	es, err := s.OpenExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
+	es, err := s.openExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
 	defer func() {
 		_ = es.Close()
 	}()
@@ -91,7 +91,7 @@ func (s *ServersService) Info(c *gin.Context, Host string, Port uint, arg *inter
 	return serverInfo, nil
 }
 
-func (s *ServersService) OpenExecutorService(Host string, Port uint, osType daModels.OSType, AdminAccountName, AdminAccountPwd string) (ExecutorService, *SErr.APIErr) {
+func (s *ServersService) openExecutorService(Host string, Port uint, osType daModels.OSType, AdminAccountName, AdminAccountPwd string) (ExecutorService, *SErr.APIErr) {
 	es, err := OpenExecutorService(Host, Port, osType, AdminAccountName, AdminAccountPwd)
 	if err != nil {
 		causeDescription := fmt.Sprintf("在尝试使用管理员账户与该服务器建连时失败！请检查该账户的配置以及网络状况！内嵌的出错信息为：[%s]", err.Message)
@@ -101,12 +101,12 @@ func (s *ServersService) OpenExecutorService(Host string, Port uint, osType daMo
 	return es, nil
 }
 
-func (s *ServersService) OpenExecutorServiceByHostPort(c *gin.Context, Host string, Port uint) (ExecutorService, *SErr.APIErr) {
-	serverBasic, _, err := s.BasicInfo(c, Host, Port)
+func (s *ServersService) openExecutorServiceByHostPort(c *gin.Context, Host string, Port uint) (ExecutorService, *SErr.APIErr) {
+	serverBasic, _, err := s.basicInfo(c, Host, Port)
 	if err != nil {
 		return nil, err
 	}
-	return s.OpenExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
+	return s.openExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
 }
 
 func (s *ServersService) loadInfoFromServer(targetServerInfo *internal_models.ServerInfo, es ExecutorService, arg *internal_models.LoadServerDetailArg) {
@@ -118,7 +118,7 @@ func (s *ServersService) loadInfoFromServer(targetServerInfo *internal_models.Se
 	// 如果MySQL中，没有存储该账户的信息，则使用从Server查询的最新数据插入该用户的数据。
 	// 如果MySQL存储了，并且从Server能够查询到该用户（一致的），则将它的信息进行补全。
 	// 如果MYSQL存储了，但是从Server中查不到该用户（可能被删掉了），那么就把他的数据过滤掉（不在MySQL中删除）
-	s.combineAccounts(es, arg, targetServerInfo)
+	s.loadAccounts(es, arg, targetServerInfo)
 	// 对WithHardwareInfo做load：
 	// 目前包含CPU和GPU的硬件数据。
 	s.loadHardwareInfo(es, arg, targetServerInfo)
@@ -159,7 +159,7 @@ func (s *ServersService) Infos(c *gin.Context, from, size uint, arg *internal_mo
 				Accounts: accounts,
 			}
 			// 第二步，初始化到该服务器的连接，如果连接失败，则直接返回错误。
-			es, err := s.OpenExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
+			es, err := s.openExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
 			defer func() {
 				_ = es.Close()
 			}()
@@ -177,7 +177,7 @@ func (s *ServersService) Infos(c *gin.Context, from, size uint, arg *internal_mo
 	return resultServerInfos, total, nil
 }
 
-func (s *ServersService) combineAccounts(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+func (s *ServersService) loadAccounts(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
 	if arg.WithAccounts == false {
 		return
 	}
@@ -193,7 +193,7 @@ func (s *ServersService) combineAccounts(es ExecutorService, arg *internal_model
 		}
 		return
 	}
-	accountsInServerMap := make(map[string]*internal_models.Account)
+	accountsInServerMap := make(map[string]*internal_models.ServerAccount)
 	for _, accountInServer := range getAccountListResp.Accounts {
 		accountsInServerMap[accountInServer.Name] = accountInServer
 	}
@@ -234,6 +234,40 @@ func (s *ServersService) combineAccounts(es ExecutorService, arg *internal_model
 		// 插入到MySQL后，将他们补全到serverInfo中。
 		for _, accInServer := range accountsInServerMap {
 			serverInfo.AccountInfos.Accounts = append(serverInfo.AccountInfos.Accounts, accInServer)
+		}
+	}
+
+	s.loadAccountBackupDirInfos(es, arg, serverInfo)
+
+}
+
+func (s *ServersService) loadAccountBackupDirInfos(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+	if !arg.WithBackupDirInfo {
+		return
+	}
+	wg := &sync.WaitGroup{}
+	batch := 5
+	for i, account := range serverInfo.AccountInfos.Accounts {
+		account := account
+		util.GoWithWG(wg, func() {
+			account.BackupDirInfo = &internal_models.ServerAccountBackupDirInfo{
+				ServerInfoCommon: &internal_models.ServerInfoCommon{
+					Output:     "",
+					FailedInfo: nil,
+				},
+			}
+			resp, err := es.GetBackupDir(account.Name)
+			if err != nil {
+				account.BackupDirInfo.FailedInfo = &internal_models.ServerInfoLoadingFailedInfo{CauseDescription: err.Error()}
+				return
+			}
+			account.BackupDirInfo.Output = resp.Output
+			account.BackupDirInfo.DirExists = resp.DirExists
+			account.BackupDirInfo.PathExists = resp.PathExists
+			account.BackupDirInfo.BackupDir = resp.BackupDir
+		})
+		if i%batch == 0 || i == len(serverInfo.AccountInfos.Accounts)-1 {
+			wg.Wait()
 		}
 	}
 }
@@ -354,8 +388,8 @@ func (s *ServersService) packServer(server *daModels.Server) *internal_models.Se
 	}
 }
 
-func (s *ServersService) packAccount(account *daModels.Account) *internal_models.Account {
-	return &internal_models.Account{
+func (s *ServersService) packAccount(account *daModels.Account) *internal_models.ServerAccount {
+	return &internal_models.ServerAccount{
 		CreatedAt: account.CreatedAt,
 		UpdatedAt: account.UpdatedAt,
 		DeletedAt: account.DeletedAt,
@@ -366,16 +400,16 @@ func (s *ServersService) packAccount(account *daModels.Account) *internal_models
 	}
 }
 
-func (s *ServersService) packPtrAccounts(accounts []*daModels.Account) []*internal_models.Account {
-	res := make([]*internal_models.Account, 0, len(accounts))
+func (s *ServersService) packPtrAccounts(accounts []*daModels.Account) []*internal_models.ServerAccount {
+	res := make([]*internal_models.ServerAccount, 0, len(accounts))
 	for _, ac := range accounts {
 		res = append(res, s.packAccount(ac))
 	}
 	return res
 }
 
-func (s *ServersService) packAccounts(accounts []daModels.Account) []*internal_models.Account {
-	res := make([]*internal_models.Account, 0, len(accounts))
+func (s *ServersService) packAccounts(accounts []daModels.Account) []*internal_models.ServerAccount {
+	res := make([]*internal_models.ServerAccount, 0, len(accounts))
 	for _, ac := range accounts {
 		res = append(res, s.packAccount(&ac))
 	}

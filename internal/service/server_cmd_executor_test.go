@@ -11,7 +11,7 @@ import (
 
 func TestSSHExecutorService_GetAccountList(t *testing.T) {
 	config.InitConfigWithFile("/Users/purchaser/go/src/ServerServing/config.yml", "dev")
-	s, err := GetLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
+	s, err := OpenLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +24,7 @@ func TestSSHExecutorService_GetAccountList(t *testing.T) {
 
 func TestSSHExecutorService_CreateAccount(t *testing.T) {
 	config.InitConfigWithFile("/Users/purchaser/go/src/ServerServing/config.yml", "dev")
-	s, err := GetLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
+	s, err := OpenLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestSSHExecutorService_CreateAccount(t *testing.T) {
 
 func TestSSHExecutorService_DeleteAccount(t *testing.T) {
 	config.InitConfigWithFile("/Users/purchaser/go/src/ServerServing/config.yml", "dev")
-	s, err := GetLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
+	s, err := OpenLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestSSHExecutorService_DeleteAccount(t *testing.T) {
 
 func TestSSHExecutorService_Path(t *testing.T) {
 	config.InitConfigWithFile("/Users/purchaser/go/src/ServerServing/config.yml", "dev")
-	s, err := GetLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
+	s, err := OpenLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestSSHExecutorService_Path(t *testing.T) {
 
 func TestSSHExecutorService_FileSystem(t *testing.T) {
 	config.InitConfigWithFile("/Users/purchaser/go/src/ServerServing/config.yml", "dev")
-	s, err := GetLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
+	s, err := OpenLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestSSHExecutorService_FileSystem(t *testing.T) {
 
 func TestSSHExecutorService_Backup(t *testing.T) {
 	config.InitConfigWithFile("/Users/purchaser/go/src/ServerServing/config.yml", "dev")
-	s, err := GetLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
+	s, err := OpenLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestSSHExecutorService_Backup(t *testing.T) {
 
 func TestSSHExecutorService_Recover(t *testing.T) {
 	config.InitConfigWithFile("/Users/purchaser/go/src/ServerServing/config.yml", "dev")
-	s, err := GetLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
+	s, err := OpenLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func TestSSHExecutorService_Top(t *testing.T) {
 
 func initConn(t *testing.T) ExecutorService {
 	config.InitConfigWithFile("/Users/purchaser/go/src/ServerServing/config.yml", "dev")
-	s, err := GetLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
+	s, err := OpenLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +203,7 @@ func TestMemInfo(t *testing.T) {
 
 func TestGPUUsage(t *testing.T) {
 	config.InitConfigWithFile("/Users/purchaser/go/src/ServerServing/config.yml", "dev")
-	s, err := GetLinuxSSHExecutorService("133.133.135.42", 22, "yzc", "zhjt9910")
+	s, err := OpenLinuxSSHExecutorService("133.133.135.42", 22, "yzc", "zhjt9910")
 	if err != nil {
 		t.Fatal(err)
 	}

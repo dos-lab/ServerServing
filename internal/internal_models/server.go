@@ -58,6 +58,8 @@ type LoadServerDetailArg struct {
 	WithGPUUsages bool `form:"with_gpu_usages" json:"with_gpu_usages"`
 	// WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。
 	WithCPUMemProcessesUsage bool `form:"with_cmp_usages" json:"with_cmp_usages"`
+	// WithBackupDirInfo 指定是否加载用户备份文件夹的信息。
+	WithBackupDirInfo bool `form:"with_backup_dir_info" json:"with_backup_dir_info"`
 }
 
 // ServerInfo 包含了查询一个Server的详细信息结构体。包含可能的一切数据，从中选取子集展示。
@@ -96,7 +98,7 @@ type ServerBasic struct {
 	OSType           da_models.OSType `json:"os_type"`
 }
 
-type Account struct {
+type ServerAccount struct {
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `json:"deleted_at"`
@@ -112,7 +114,17 @@ type Account struct {
 
 	NotExistsInServer bool `json:"not_exists_in_server"`
 
+	BackupDirInfo *ServerAccountBackupDirInfo `json:"backup_dir_info"`
+
 	Server ServerBasic `json:"server"`
+}
+
+type ServerAccountBackupDirInfo struct {
+	*ServerInfoCommon
+
+	BackupDir  string `json:"backup_dir"`
+	PathExists bool   `json:"path_exists"`
+	DirExists  bool   `json:"dir_exists"`
 }
 
 // ServerInfoLoadingFailedInfo 描述一个服务器的某部分内容加载失败的原因，以及当时服务器的原始输出。
@@ -205,7 +217,7 @@ func (g ServerGPU) IsNvidia() bool {
 type ServerAccountInfos struct {
 	*ServerInfoCommon
 
-	Accounts []*Account `json:"accounts"`
+	Accounts []*ServerAccount `json:"accounts"`
 }
 
 // ServerRemoteAccessingUsagesInfo 描述一个正在从远程访问的用户信息。（正在使用SSH连接的用户）

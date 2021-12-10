@@ -12,7 +12,7 @@ import (
 )
 
 func (s *ServersService) AddAccount(c *gin.Context, Host string, Port uint, AccountName, AccountPwd string) *SErr.APIErr {
-	es, err := s.OpenExecutorServiceByHostPort(c, Host, Port)
+	es, err := s.openExecutorServiceByHostPort(c, Host, Port)
 	if err != nil {
 		msg := fmt.Sprintf("添加账户时，打开连接时出错！出错信息为：err=[%s], Host=[%s], Port=[%d], AccountName=[%s]", err.Error(), Host, Port, AccountName)
 		log.Println(msg)
@@ -67,14 +67,14 @@ func (s *ServersService) doAddAccount(c *gin.Context, es ExecutorService, Host s
 	err = accDal.Upsert([]*daModels.Account{acc})
 	if err != nil {
 		// 该MySQL操作失败也没关系，因为这不是关键操作。
-		log.Printf("ServersService Upsert Account to MySQL Failed, err=[%+v] ES=[%s], AccountName=[%s], AccountPwd=[%s]", err, es, AccountName, AccountPwd)
+		log.Printf("ServersService Upsert ServerAccount to MySQL Failed, err=[%+v] ES=[%s], AccountName=[%s], AccountPwd=[%s]", err, es, AccountName, AccountPwd)
 	}
 	return nil
 }
 
 // DeleteAccount 删除账户，可选是否对home目录进行备份，如果需要备份，则返回它备份后的目标文件夹。
 func (s *ServersService) DeleteAccount(c *gin.Context, Host string, Port uint, AccountName string, Backup bool) (string, *SErr.APIErr) {
-	es, err := s.OpenExecutorServiceByHostPort(c, Host, Port)
+	es, err := s.openExecutorServiceByHostPort(c, Host, Port)
 	if err != nil {
 		msg := fmt.Sprintf("删除账户时，打开连接时出错！出错信息为：err=[%s], Host=[%s], Port=[%d], AccountName=[%s]", err.Error(), Host, Port, AccountName)
 		log.Println(msg)
@@ -112,7 +112,7 @@ func (s *ServersService) DeleteAccount(c *gin.Context, Host string, Port uint, A
 
 // RecoverAccount 恢复某个被删除的账户，可选是否对backup的home目录进行恢复。
 func (s *ServersService) RecoverAccount(c *gin.Context, Host string, Port uint, AccountName, AccountPwd string, RecoverBackup bool) *SErr.APIErr {
-	es, err := s.OpenExecutorServiceByHostPort(c, Host, Port)
+	es, err := s.openExecutorServiceByHostPort(c, Host, Port)
 	if err != nil {
 		msg := fmt.Sprintf("恢复账户时，打开连接时出错！出错信息为：err=[%s], Host=[%s], Port=[%d], AccountName=[%s]", err.Error(), Host, Port, AccountName)
 		log.Println(msg)
@@ -147,7 +147,7 @@ func (s *ServersService) RecoverAccount(c *gin.Context, Host string, Port uint, 
 
 // UpdateAccount 更新某个存在的账户，更新它在MySQL中的存储。这里可能是在Server中存在，但是在MySQL中存储的数据不全时需要使用。
 func (s *ServersService) UpdateAccount(c *gin.Context, Host string, Port uint, AccountName, AccountPwd string) *SErr.APIErr {
-	es, err := s.OpenExecutorServiceByHostPort(c, Host, Port)
+	es, err := s.openExecutorServiceByHostPort(c, Host, Port)
 	if err != nil {
 		msg := fmt.Sprintf("更新账户时，打开连接时出错！出错信息为：err=[%s], Host=[%s], Port=[%d], AccountName=[%s]", err.Error(), Host, Port, AccountName)
 		log.Println(msg)
@@ -172,7 +172,7 @@ func (s *ServersService) UpdateAccount(c *gin.Context, Host string, Port uint, A
 	accDal := dal.GetAccountDal()
 	err = accDal.Upsert([]*daModels.Account{acc})
 	if err != nil {
-		log.Printf("ServersService Upsert Account to MySQL Failed, err=[%+v] ES=[%s], AccountName=[%s], AccountPwd=[%s]", err, es, AccountName, AccountPwd)
+		log.Printf("ServersService Upsert ServerAccount to MySQL Failed, err=[%+v] ES=[%s], AccountName=[%s], AccountPwd=[%s]", err, es, AccountName, AccountPwd)
 		return err
 	}
 	return nil
@@ -180,7 +180,7 @@ func (s *ServersService) UpdateAccount(c *gin.Context, Host string, Port uint, A
 
 // BackupDirInfo 查看该用户名对应的backup文件夹的信息。
 func (s *ServersService) BackupDirInfo(c *gin.Context, Host string, Port uint, AccountName string) (*internal_models.ServerAccountBackupDirInfo, *SErr.APIErr) {
-	es, err := s.OpenExecutorServiceByHostPort(c, Host, Port)
+	es, err := s.openExecutorServiceByHostPort(c, Host, Port)
 	if err != nil {
 		msg := fmt.Sprintf("备份账户时，打开连接时出错！出错信息为：err=[%s], Host=[%s], Port=[%d], AccountName=[%s]", err.Error(), Host, Port, AccountName)
 		log.Println(msg)

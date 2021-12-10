@@ -64,6 +64,12 @@ var doc = `{
                     },
                     {
                         "type": "boolean",
+                        "description": "WithBackupDirInfo 指定是否加载用户备份文件夹的信息。",
+                        "name": "with_backup_dir_info",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
                         "description": "WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。",
                         "name": "with_cmp_usages",
                         "in": "query"
@@ -303,6 +309,12 @@ var doc = `{
                         "type": "boolean",
                         "description": "WithAccounts 加载账户信息的参数，为nil则不加载",
                         "name": "with_accounts",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "WithBackupDirInfo 指定是否加载用户备份文件夹的信息。",
+                        "name": "with_backup_dir_info",
                         "in": "query"
                     },
                     {
@@ -588,9 +600,12 @@ var doc = `{
                 }
             }
         },
-        "internal_models.Account": {
+        "internal_models.ServerAccount": {
             "type": "object",
             "properties": {
+                "backup_dir_info": {
+                    "$ref": "#/definitions/internal_models.ServerAccountBackupDirInfo"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -626,6 +641,26 @@ var doc = `{
                 }
             }
         },
+        "internal_models.ServerAccountBackupDirInfo": {
+            "type": "object",
+            "properties": {
+                "backup_dir": {
+                    "type": "string"
+                },
+                "dir_exists": {
+                    "type": "boolean"
+                },
+                "failed_info": {
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "output": {
+                    "type": "string"
+                },
+                "path_exists": {
+                    "type": "boolean"
+                }
+            }
+        },
         "internal_models.ServerAccountBackupDirResponse": {
             "type": "object",
             "properties": {
@@ -634,6 +669,12 @@ var doc = `{
                 },
                 "dir_exists": {
                     "type": "boolean"
+                },
+                "failed_info": {
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "output": {
+                    "type": "string"
                 },
                 "path_exists": {
                     "type": "boolean"
@@ -658,12 +699,7 @@ var doc = `{
             }
         },
         "internal_models.ServerAccountCreateResponse": {
-            "type": "object",
-            "properties": {
-                "backup_dir": {
-                    "type": "string"
-                }
-            }
+            "type": "object"
         },
         "internal_models.ServerAccountDeleteRequest": {
             "type": "object",
@@ -683,7 +719,12 @@ var doc = `{
             }
         },
         "internal_models.ServerAccountDeleteResponse": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "backup_dir": {
+                    "type": "string"
+                }
+            }
         },
         "internal_models.ServerAccountInfos": {
             "type": "object",
@@ -691,7 +732,7 @@ var doc = `{
                 "accounts": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/internal_models.Account"
+                        "$ref": "#/definitions/internal_models.ServerAccount"
                     }
                 },
                 "failed_info": {
@@ -800,11 +841,11 @@ var doc = `{
             "properties": {
                 "mem_usage": {
                     "description": "MemUsage 总内存使用（比例：如3600MB/8000MB）",
-                    "type": "string"
+                    "type": "number"
                 },
                 "user_cpu_usage": {
                     "description": "UserProcCPUUsage 记录用户进程的CPU使用率。（总比例）",
-                    "type": "string"
+                    "type": "number"
                 }
             }
         },
@@ -993,7 +1034,7 @@ var doc = `{
                 },
                 "cpu_usage": {
                     "description": "CPU利用率。",
-                    "type": "string"
+                    "type": "number"
                 },
                 "failed_info": {
                     "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
@@ -1004,7 +1045,7 @@ var doc = `{
                 },
                 "mem_usage": {
                     "description": "内存利用率",
-                    "type": "string"
+                    "type": "number"
                 },
                 "output": {
                     "type": "string"

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"ServerServing/api/format"
 	SErr "ServerServing/err"
 	models "ServerServing/internal/internal_models"
 	"ServerServing/internal/service"
@@ -21,7 +20,7 @@ func GetServerAccountsHandler() ServerAccountsHandler {
 // @Router /api/v1/servers/accounts [post]
 // @Param serverAccountCreateRequest body internal_models.ServerAccountCreateRequest true "serverAccountCreateRequest"
 // @Success 200 {object} internal_models.ServerAccountCreateResponse
-func (ServerAccountsHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (ServerAccountsHandler) Create(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.ServerAccountCreateRequest{}
 	e := c.ShouldBind(req)
 	if e != nil {
@@ -33,7 +32,7 @@ func (ServerAccountsHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SE
 	if sErr != nil {
 		return nil, sErr
 	}
-	return format.SimpleOKResp(&models.ServerAccountCreateResponse{}), nil
+	return &models.ServerAccountCreateResponse{}, nil
 }
 
 // BackupDirInfo
@@ -43,7 +42,7 @@ func (ServerAccountsHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SE
 // @Router /api/v1/servers/accounts/backupDir [get]
 // @Param serverAccountBackupDirRequest query internal_models.ServerAccountBackupDirRequest true "serverAccountBackupDirRequest"
 // @Success 200 {object} internal_models.ServerAccountBackupDirResponse
-func (ServerAccountsHandler) BackupDirInfo(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (ServerAccountsHandler) BackupDirInfo(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.ServerAccountBackupDirRequest{}
 	e := c.ShouldBindQuery(req)
 	if e != nil {
@@ -55,9 +54,9 @@ func (ServerAccountsHandler) BackupDirInfo(c *gin.Context) (*format.JSONRespForm
 	if err != nil {
 		return nil, err
 	}
-	return format.SimpleOKResp(&models.ServerAccountBackupDirResponse{
+	return &models.ServerAccountBackupDirResponse{
 		ServerAccountBackupDirInfo: *backupInfo,
-	}), nil
+	}, nil
 }
 
 // Delete
@@ -67,7 +66,7 @@ func (ServerAccountsHandler) BackupDirInfo(c *gin.Context) (*format.JSONRespForm
 // @Router /api/v1/servers/accounts [delete]
 // @Param serverAccountDeleteRequest body internal_models.ServerAccountDeleteRequest true "serverAccountDeleteRequest"
 // @Success 200 {object} internal_models.ServerAccountDeleteResponse
-func (ServerAccountsHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (ServerAccountsHandler) Delete(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.ServerAccountDeleteRequest{}
 	e := c.ShouldBind(req)
 	if e != nil {
@@ -85,9 +84,9 @@ func (ServerAccountsHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SE
 	if sErr != nil {
 		return nil, sErr
 	}
-	return format.SimpleOKResp(&models.ServerAccountDeleteResponse{
+	return &models.ServerAccountDeleteResponse{
 		BackupDir: targetDir,
-	}), nil
+	}, nil
 }
 
 // Update
@@ -97,7 +96,7 @@ func (ServerAccountsHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SE
 // @Router /api/v1/servers/accounts [put]
 // @Param serverAccountUpdateRequest body internal_models.ServerAccountUpdateRequest true "serverAccountUpdateRequest"
 // @Success 200 {object} internal_models.ServerAccountUpdateResponse
-func (s ServerAccountsHandler) Update(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (s ServerAccountsHandler) Update(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.ServerAccountUpdateRequest{}
 	e := c.ShouldBind(req)
 	if e != nil {
@@ -114,7 +113,7 @@ func (s ServerAccountsHandler) Update(c *gin.Context) (*format.JSONRespFormat, *
 	if err != nil {
 		return nil, err
 	}
-	return format.SimpleOKResp(res), nil
+	return res, nil
 }
 
 func (s ServerAccountsHandler) recover(c *gin.Context, req *models.ServerAccountUpdateRequest) (*models.ServerAccountUpdateResponse, *SErr.APIErr) {

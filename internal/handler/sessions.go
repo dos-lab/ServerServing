@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"ServerServing/api/format"
 	SErr "ServerServing/err"
 	models "ServerServing/internal/internal_models"
 	"ServerServing/internal/service"
@@ -21,7 +20,7 @@ func GetSessionsHandler() *SessionsHandler {
 // @Router /api/v1/sessions/ [post]
 // @Param sessionsCreateRequest body internal_models.SessionsCreateRequest true "createRequest"
 // @Success 200 {object} internal_models.SessionsCreateResponse
-func (SessionsHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (SessionsHandler) Create(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.SessionsCreateRequest{}
 	err := c.ShouldBind(req)
 	if err != nil {
@@ -31,7 +30,7 @@ func (SessionsHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.API
 	if sErr != nil {
 		return nil, sErr
 	}
-	return format.SimpleOKResp(&models.SessionsCreateResponse{}), nil
+	return &models.SessionsCreateResponse{}, nil
 }
 
 // Destroy
@@ -41,9 +40,9 @@ func (SessionsHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.API
 // @Router /api/v1/sessions/ [delete]
 // @Param sessionsDestroyRequest body internal_models.SessionsDestroyRequest true "destroyRequest"
 // @Success 200 {object} internal_models.SessionsDestroyResponse
-func (SessionsHandler) Destroy(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (SessionsHandler) Destroy(c *gin.Context) (interface{}, *SErr.APIErr) {
 	service.GetSessionsService().Destroy(c)
-	return format.SimpleOKResp(&models.SessionsDestroyResponse{}), nil
+	return &models.SessionsDestroyResponse{}, nil
 }
 
 // Check
@@ -52,9 +51,9 @@ func (SessionsHandler) Destroy(c *gin.Context) (*format.JSONRespFormat, *SErr.AP
 // @Produce json
 // @Router /api/v1/sessions/ [get]
 // @Success 200 {object} internal_models.SessionsCheckResponse
-func (SessionsHandler) Check(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr) {
+func (SessionsHandler) Check(c *gin.Context) (interface{}, *SErr.APIErr) {
 	userID, _ := service.GetSessionsService().GetUserID(c)
-	return format.SimpleOKResp(&models.SessionsCheckResponse{
+	return &models.SessionsCheckResponse{
 		UserID: userID,
-	}), nil
+	}, nil
 }

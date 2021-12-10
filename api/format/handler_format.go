@@ -5,5 +5,5 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type JSONHandler func(*gin.Context) (*JSONRespFormat, *err.APIErr)
+type JSONHandler func(*gin.Context) (interface{}, *err.APIErr)
 type NormalHandler func(*gin.Context)

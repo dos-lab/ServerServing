@@ -43,9 +43,3 @@ type ServerAccountBackupDirRequest struct {
 type ServerAccountBackupDirResponse struct {
 	ServerAccountBackupDirInfo
 }
-
-type ServerAccountBackupDirInfo struct {
-	BackupDir  string `json:"backup_dir"`
-	PathExists bool   `json:"path_exists"`
-	DirExists  bool   `json:"dir_exists"`
-}
