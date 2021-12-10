@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ServerAccountsHandler struct {}
+type ServerAccountsHandler struct{}
 
 func GetServerAccountsHandler() ServerAccountsHandler {
 	return ServerAccountsHandler{}
@@ -29,7 +29,6 @@ func (ServerAccountsHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SE
 	}
 
 	serversSvc := service.GetServersService()
-	defer serversSvc.Close()
 	sErr := serversSvc.AddAccount(c, req.Host, req.Port, req.AccountName, req.AccountPwd)
 	if sErr != nil {
 		return nil, sErr
@@ -52,7 +51,6 @@ func (ServerAccountsHandler) BackupDirInfo(c *gin.Context) (*format.JSONRespForm
 	}
 
 	serversSvc := service.GetServersService()
-	defer serversSvc.Close()
 	backupInfo, err := serversSvc.BackupDirInfo(c, req.Host, req.Port, req.AccountName)
 	if err != nil {
 		return nil, err
@@ -83,7 +81,6 @@ func (ServerAccountsHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SE
 	}
 
 	serversSvc := service.GetServersService()
-	defer serversSvc.Close()
 	targetDir, sErr := serversSvc.DeleteAccount(c, req.Host, req.Port, req.AccountName, req.Backup)
 	if sErr != nil {
 		return nil, sErr
@@ -92,7 +89,6 @@ func (ServerAccountsHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SE
 		BackupDir: targetDir,
 	}), nil
 }
-
 
 // Update
 // @Summary 更新，恢复一个服务器的账号。
@@ -123,7 +119,6 @@ func (s ServerAccountsHandler) Update(c *gin.Context) (*format.JSONRespFormat, *
 
 func (s ServerAccountsHandler) recover(c *gin.Context, req *models.ServerAccountUpdateRequest) (*models.ServerAccountUpdateResponse, *SErr.APIErr) {
 	serversSvc := service.GetServersService()
-	defer serversSvc.Close()
 	sErr := serversSvc.RecoverAccount(c, req.Host, req.Port, req.AccountName, req.AccountPwd, req.RecoverBackup)
 	if sErr != nil {
 		return nil, sErr
@@ -133,7 +128,6 @@ func (s ServerAccountsHandler) recover(c *gin.Context, req *models.ServerAccount
 
 func (ServerAccountsHandler) update(c *gin.Context, req *models.ServerAccountUpdateRequest) (*models.ServerAccountUpdateResponse, *SErr.APIErr) {
 	serversSvc := service.GetServersService()
-	defer serversSvc.Close()
 	sErr := serversSvc.UpdateAccount(c, req.Host, req.Port, req.AccountName, req.AccountPwd)
 	if sErr != nil {
 		return nil, sErr

@@ -9,24 +9,22 @@ import (
 )
 
 type ServerCreateRequest struct {
-	Host string `form:"host" json:"host"`
-	Port uint `form:"port" json:"port"`
-	OSType da_models.OSType `form:"os_type" json:"os_type"`
-	AdminAccountName string `form:"admin_account_name" json:"admin_account_name"`
-	AdminAccountPwd string `form:"admin_account_pwd" json:"admin_account_pwd"`
+	Host             string           `form:"host" json:"host"`
+	Port             uint             `form:"port" json:"port"`
+	OSType           da_models.OSType `form:"os_type" json:"os_type"`
+	AdminAccountName string           `form:"admin_account_name" json:"admin_account_name"`
+	AdminAccountPwd  string           `form:"admin_account_pwd" json:"admin_account_pwd"`
 }
 
 type ServerCreateResponse struct {
-
 }
 
 type ServerDeleteRequest struct {
 	Host string `form:"host" json:"host"`
-	Port uint  `form:"port" json:"port"`
+	Port uint   `form:"port" json:"port"`
 }
 
 type ServerDeleteResponse struct {
-
 }
 
 type ServerInfoRequest struct {
@@ -38,15 +36,15 @@ type ServerInfoResponse struct {
 }
 
 type ServerInfosRequest struct {
-	From uint `form:"from" json:"from"`
-	Size uint `form:"size" json:"size"`
+	From    uint    `form:"from" json:"from"`
+	Size    uint    `form:"size" json:"size"`
 	Keyword *string `form:"keyword" json:"keyword"`
 	LoadServerDetailArg
 }
 
 type ServerInfosResponse struct {
 	ServerInfos []*ServerInfo
-	TotalCount uint
+	TotalCount  uint
 }
 
 type LoadServerDetailArg struct {
@@ -238,10 +236,10 @@ type ServerCPUMemProcessesUsageInfo struct {
 
 type ServerCPUMemUsage struct {
 	// UserProcCPUUsage 记录用户进程的CPU使用率。（总比例）
-	UserProcCPUUsage *string `json:"user_cpu_usage"`
+	UserProcCPUUsage *float64 `json:"user_cpu_usage"`
 
 	// MemUsage 总内存使用（比例：如3600MB/8000MB）
-	MemUsage *string `json:"mem_usage"`
+	MemUsage *float64 `json:"mem_usage"`
 }
 
 // ServerProcessInfo 描述一个在Server上的进程信息。
@@ -255,9 +253,9 @@ type ServerProcessInfo struct {
 	// OwnerAccountName 该进程由哪个用户启动。
 	OwnerAccountName *string `json:"owner_account_name"`
 	// CPU利用率。
-	CPUUsage *string `json:"cpu_usage"`
+	CPUUsage *float64 `json:"cpu_usage"`
 	// 内存利用率
-	MemUsage *string `json:"mem_usage"`
+	MemUsage *float64 `json:"mem_usage"`
 	// GPU利用率（不一定能查到）
 	GPUUsage *string `json:"gpu_usage"`
 }

@@ -48,10 +48,10 @@ func Register(r *gin.Engine) {
 }
 
 const (
-	prefixTest    = "test"
-	prefixUser    = "users"
-	prefixSession = "sessions"
-	prefixServer = "servers"
+	prefixTest           = "test"
+	prefixUser           = "users"
+	prefixSession        = "sessions"
+	prefixServer         = "servers"
 	prefixServerAccounts = "servers/accounts/"
 )
 
@@ -115,7 +115,7 @@ func (sessionsAPI) check() format.JSONHandler {
 	}
 }
 
-type serversAPI struct {}
+type serversAPI struct{}
 
 func (serversAPI) create() format.JSONHandler {
 	return func(c *gin.Context) (*format.JSONRespFormat, *err.APIErr) {
@@ -141,7 +141,7 @@ func (serversAPI) infos() format.JSONHandler {
 	}
 }
 
-type serversAccountsAPI struct {}
+type serversAccountsAPI struct{}
 
 func (serversAccountsAPI) create() format.JSONHandler {
 	return func(c *gin.Context) (*format.JSONRespFormat, *err.APIErr) {
@@ -166,7 +166,6 @@ func (serversAccountsAPI) update() format.JSONHandler {
 		return handler.GetServerAccountsHandler().Update(c)
 	}
 }
-
 
 type testAPI struct{}
 

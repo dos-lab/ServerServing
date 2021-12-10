@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ServerHandler struct {}
+type ServerHandler struct{}
 
 func GetServerHandler() *ServerHandler {
 	return &ServerHandler{}
@@ -36,7 +36,6 @@ func (ServerHandler) Create(c *gin.Context) (*format.JSONRespFormat, *SErr.APIEr
 	}
 
 	serversSvc := service.GetServersService()
-	defer serversSvc.Close()
 	err = serversSvc.Create(c, req.Host, req.Port, req.OSType, req.AdminAccountName, req.AdminAccountPwd)
 	if err != nil {
 		return nil, err
@@ -66,7 +65,6 @@ func (ServerHandler) Delete(c *gin.Context) (*format.JSONRespFormat, *SErr.APIEr
 	}
 
 	serversSvc := service.GetServersService()
-	defer serversSvc.Close()
 	err = serversSvc.Delete(c, req.Host, req.Port)
 	if err != nil {
 		return nil, err
@@ -98,7 +96,6 @@ func (ServerHandler) Info(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr)
 	}
 
 	serversSvc := service.GetServersService()
-	defer serversSvc.Close()
 	info, sErr := serversSvc.Info(c, host, uint(port), &req.LoadServerDetailArg)
 	if sErr != nil {
 		return nil, sErr
@@ -107,7 +104,6 @@ func (ServerHandler) Info(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr)
 		ServerInfo: info,
 	}), nil
 }
-
 
 // Infos
 // @Summary 查询多个server信息。
@@ -124,13 +120,12 @@ func (ServerHandler) Infos(c *gin.Context) (*format.JSONRespFormat, *SErr.APIErr
 	}
 
 	serversSvc := service.GetServersService()
-	defer serversSvc.Close()
 	infos, totalCount, sErr := serversSvc.Infos(c, req.From, req.Size, &req.LoadServerDetailArg, req.Keyword)
 	if sErr != nil {
 		return nil, sErr
 	}
 	return format.SimpleOKResp(&models.ServerInfosResponse{
 		ServerInfos: infos,
-		TotalCount: totalCount,
+		TotalCount:  totalCount,
 	}), nil
 }

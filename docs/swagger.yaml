@@ -406,14 +406,14 @@ paths:
   /api/v1/servers/:
     delete:
       parameters:
-      - description: serverDeleteRequest
-        in: body
-        name: serverDeleteRequest
-        required: true
-        schema:
-          $ref: '#/definitions/internal_models.ServerDeleteRequest'
+        - description: serverDeleteRequest
+          in: body
+          name: serverDeleteRequest
+          required: true
+          schema:
+            $ref: '#/definitions/internal_models.ServerDeleteRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -421,40 +421,40 @@ paths:
             $ref: '#/definitions/internal_models.ServerDeleteResponse'
       summary: 删除server。
       tags:
-      - server
+        - server
     get:
       parameters:
-      - in: query
-        name: from
-        type: integer
-      - in: query
-        name: keyword
-        type: string
-      - in: query
-        name: size
-        type: integer
-      - description: WithAccounts 加载账户信息的参数，为nil则不加载
-        in: query
-        name: with_accounts
-        type: boolean
-      - description: WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。
-        in: query
-        name: with_cmp_usages
-        type: boolean
-      - description: WithGPUUsages 指定是否加载GPU的使用信息。
-        in: query
-        name: with_gpu_usages
-        type: boolean
-      - description: WithHardwareInfo 指定是否加载硬件的元信息
-        in: query
-        name: with_hardware_info
-        type: boolean
-      - description: WithRemoteAccessUsages 指定是否加载正在远程登录这台服务器的用户信息。
-        in: query
-        name: with_remote_access_usages
-        type: boolean
+        - in: query
+          name: from
+          type: integer
+        - in: query
+          name: keyword
+          type: string
+        - in: query
+          name: size
+          type: integer
+        - description: WithAccounts 加载账户信息的参数，为nil则不加载
+          in: query
+          name: with_accounts
+          type: boolean
+        - description: WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。
+          in: query
+          name: with_cmp_usages
+          type: boolean
+        - description: WithGPUUsages 指定是否加载GPU的使用信息。
+          in: query
+          name: with_gpu_usages
+          type: boolean
+        - description: WithHardwareInfo 指定是否加载硬件的元信息
+          in: query
+          name: with_hardware_info
+          type: boolean
+        - description: WithRemoteAccessUsages 指定是否加载正在远程登录这台服务器的用户信息。
+          in: query
+          name: with_remote_access_usages
+          type: boolean
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -462,17 +462,17 @@ paths:
             $ref: '#/definitions/internal_models.ServerInfosResponse'
       summary: 查询多个server信息。
       tags:
-      - server
+        - server
     post:
       parameters:
-      - description: serverCreateRequest
-        in: body
-        name: serverCreateRequest
-        required: true
-        schema:
-          $ref: '#/definitions/internal_models.ServerCreateRequest'
+        - description: serverCreateRequest
+          in: body
+          name: serverCreateRequest
+          required: true
+          schema:
+            $ref: '#/definitions/internal_models.ServerCreateRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -480,42 +480,42 @@ paths:
             $ref: '#/definitions/internal_models.ServerCreateResponse'
       summary: 创建server。
       tags:
-      - server
+        - server
   /api/v1/servers/{host}/{port}:
     get:
       parameters:
-      - description: host
-        in: path
-        name: host
-        required: true
-        type: string
-      - description: port
-        in: path
-        name: port
-        required: true
-        type: integer
-      - description: WithAccounts 加载账户信息的参数，为nil则不加载
-        in: query
-        name: with_accounts
-        type: boolean
-      - description: WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。
-        in: query
-        name: with_cmp_usages
-        type: boolean
-      - description: WithGPUUsages 指定是否加载GPU的使用信息。
-        in: query
-        name: with_gpu_usages
-        type: boolean
-      - description: WithHardwareInfo 指定是否加载硬件的元信息
-        in: query
-        name: with_hardware_info
-        type: boolean
-      - description: WithRemoteAccessUsages 指定是否加载正在远程登录这台服务器的用户信息。
-        in: query
-        name: with_remote_access_usages
-        type: boolean
+        - description: host
+          in: path
+          name: host
+          required: true
+          type: string
+        - description: port
+          in: path
+          name: port
+          required: true
+          type: integer
+        - description: WithAccounts 加载账户信息的参数，为nil则不加载
+          in: query
+          name: with_accounts
+          type: boolean
+        - description: WithCPUMemProcessesUsage 指定是否加载CPU，内存，进程的使用信息。
+          in: query
+          name: with_cmp_usages
+          type: boolean
+        - description: WithGPUUsages 指定是否加载GPU的使用信息。
+          in: query
+          name: with_gpu_usages
+          type: boolean
+        - description: WithHardwareInfo 指定是否加载硬件的元信息
+          in: query
+          name: with_hardware_info
+          type: boolean
+        - description: WithRemoteAccessUsages 指定是否加载正在远程登录这台服务器的用户信息。
+          in: query
+          name: with_remote_access_usages
+          type: boolean
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -523,18 +523,18 @@ paths:
             $ref: '#/definitions/internal_models.ServerInfoResponse'
       summary: 查询server信息。
       tags:
-      - server
+        - server
   /api/v1/servers/accounts:
     delete:
       parameters:
-      - description: serverAccountDeleteRequest
-        in: body
-        name: serverAccountDeleteRequest
-        required: true
-        schema:
-          $ref: '#/definitions/internal_models.ServerAccountDeleteRequest'
+        - description: serverAccountDeleteRequest
+          in: body
+          name: serverAccountDeleteRequest
+          required: true
+          schema:
+            $ref: '#/definitions/internal_models.ServerAccountDeleteRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -542,17 +542,17 @@ paths:
             $ref: '#/definitions/internal_models.ServerAccountDeleteResponse'
       summary: 删除一个服务器的账号。
       tags:
-      - server_account
+        - server_account
     post:
       parameters:
-      - description: serverAccountCreateRequest
-        in: body
-        name: serverAccountCreateRequest
-        required: true
-        schema:
-          $ref: '#/definitions/internal_models.ServerAccountCreateRequest'
+        - description: serverAccountCreateRequest
+          in: body
+          name: serverAccountCreateRequest
+          required: true
+          schema:
+            $ref: '#/definitions/internal_models.ServerAccountCreateRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -560,17 +560,17 @@ paths:
             $ref: '#/definitions/internal_models.ServerAccountCreateResponse'
       summary: 创建一个服务器的sudo账号。
       tags:
-      - server_account
+        - server_account
     put:
       parameters:
-      - description: serverAccountUpdateRequest
-        in: body
-        name: serverAccountUpdateRequest
-        required: true
-        schema:
-          $ref: '#/definitions/internal_models.ServerAccountUpdateRequest'
+        - description: serverAccountUpdateRequest
+          in: body
+          name: serverAccountUpdateRequest
+          required: true
+          schema:
+            $ref: '#/definitions/internal_models.ServerAccountUpdateRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -578,21 +578,21 @@ paths:
             $ref: '#/definitions/internal_models.ServerAccountUpdateResponse'
       summary: 更新，恢复一个服务器的账号。
       tags:
-      - server_account
+        - server_account
   /api/v1/servers/accounts/backupDir:
     get:
       parameters:
-      - in: query
-        name: account_name
-        type: string
-      - in: query
-        name: host
-        type: string
-      - in: query
-        name: port
-        type: integer
+        - in: query
+          name: account_name
+          type: string
+        - in: query
+          name: host
+          type: string
+        - in: query
+          name: port
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -600,18 +600,18 @@ paths:
             $ref: '#/definitions/internal_models.ServerAccountBackupDirResponse'
       summary: 获取一个账户的backup文件夹的相关信息
       tags:
-      - server_account
+        - server_account
   /api/v1/sessions/:
     delete:
       parameters:
-      - description: destroyRequest
-        in: body
-        name: sessionsDestroyRequest
-        required: true
-        schema:
-          $ref: '#/definitions/internal_models.SessionsDestroyRequest'
+        - description: destroyRequest
+          in: body
+          name: sessionsDestroyRequest
+          required: true
+          schema:
+            $ref: '#/definitions/internal_models.SessionsDestroyRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -619,10 +619,10 @@ paths:
             $ref: '#/definitions/internal_models.SessionsDestroyResponse'
       summary: 退出session。（退出登录）
       tags:
-      - session
+        - session
     get:
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -630,17 +630,17 @@ paths:
             $ref: '#/definitions/internal_models.SessionsCheckResponse'
       summary: 检查登录状态。
       tags:
-      - session
+        - session
     post:
       parameters:
-      - description: createRequest
-        in: body
-        name: sessionsCreateRequest
-        required: true
-        schema:
-          $ref: '#/definitions/internal_models.SessionsCreateRequest'
+        - description: createRequest
+          in: body
+          name: sessionsCreateRequest
+          required: true
+          schema:
+            $ref: '#/definitions/internal_models.SessionsCreateRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -648,41 +648,41 @@ paths:
             $ref: '#/definitions/internal_models.SessionsCreateResponse'
       summary: 创建session。（登录）
       tags:
-      - session
+        - session
   /api/v1/test/error_handler:
     get:
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: ""
       summary: test error handler
       tags:
-      - test
+        - test
   /api/v1/test/ping:
     get:
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: ""
       summary: ping
       tags:
-      - test
+        - test
   /api/v1/users/:
     get:
       parameters:
-      - in: query
-        name: from
-        type: integer
-      - in: query
-        name: searchKeyword
-        type: string
-      - in: query
-        name: size
-        type: integer
+        - in: query
+          name: from
+          type: integer
+        - in: query
+          name: searchKeyword
+          type: string
+        - in: query
+          name: size
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -690,17 +690,17 @@ paths:
             $ref: '#/definitions/internal_models.UsersInfosResponse'
       summary: 获取多个用户信息，可以添加关键字对姓名搜索。
       tags:
-      - user
+        - user
     post:
       parameters:
-      - description: userCreateRequest
-        in: body
-        name: userCreateRequest
-        required: true
-        schema:
-          $ref: '#/definitions/internal_models.UsersCreateRequest'
+        - description: userCreateRequest
+          in: body
+          name: userCreateRequest
+          required: true
+          schema:
+            $ref: '#/definitions/internal_models.UsersCreateRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -708,17 +708,17 @@ paths:
             $ref: '#/definitions/internal_models.UsersCreateResponse'
       summary: 注册用户
       tags:
-      - user
+        - user
   /api/v1/users/{id}:
     get:
       parameters:
-      - description: id
-        in: path
-        name: id
-        required: true
-        type: integer
+        - description: id
+          in: path
+          name: id
+          required: true
+          type: integer
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -726,22 +726,22 @@ paths:
             $ref: '#/definitions/internal_models.UsersInfoResponse'
       summary: 获取单个用户信息
       tags:
-      - user
+        - user
     put:
       parameters:
-      - description: id
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: updateRequest
-        in: body
-        name: updateRequest
-        required: true
-        schema:
-          $ref: '#/definitions/internal_models.UsersUpdateRequest'
+        - description: id
+          in: path
+          name: id
+          required: true
+          type: integer
+        - description: updateRequest
+          in: body
+          name: updateRequest
+          required: true
+          schema:
+            $ref: '#/definitions/internal_models.UsersUpdateRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -749,5 +749,5 @@ paths:
             $ref: '#/definitions/internal_models.UsersUpdateResponse'
       summary: 修改用户信息
       tags:
-      - user
+        - user
 swagger: "2.0"

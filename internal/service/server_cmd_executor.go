@@ -30,7 +30,7 @@ const (
 	CentOS  LinuxOSType = "centos"
 )
 
-func GetExecutorService(Host string, Port uint, osType daModels.OSType, adminAccountName, adminAccountPwd string) (ExecutorService, *SErr.APIErr) {
+func OpenExecutorService(Host string, Port uint, osType daModels.OSType, adminAccountName, adminAccountPwd string) (ExecutorService, *SErr.APIErr) {
 	switch osType {
 	case daModels.OSTypeLinux:
 		return GetLinuxSSHExecutorService(Host, Port, adminAccountName, adminAccountPwd)
@@ -76,6 +76,8 @@ var loadCmdScript = func() func(path, name string) (string, *SErr.APIErr) {
 // ExecutorService 描述远端命令组成的的外部可用接口。目前只包括Linux服务器。
 // 其中每个接口的第一个返回参数永远都是从服务器返回的真实output，用于在复杂情况下debug，或者直接给用户展示它的内容。
 type ExecutorService interface {
+	// Move FileExists DirExists PathExists Mkdir MkdirIfNotExists GetCPUMemProcessesUsages GetGPUUsages
+	// 均为上层完整方法，面对Linux各平台通用。
 	Move(src, dst string, force bool) (*ExecutorServiceVoidResp, *SErr.APIErr)
 	FileExists(filepath string) (*ExecutorServiceExistsResp, *SErr.APIErr)
 	DirExists(dirPath string) (*ExecutorServiceExistsResp, *SErr.APIErr)
@@ -93,7 +95,6 @@ type ExecutorService interface {
 	BackupAccountHomeDir(accountName string) (*ExecutorServiceBackupAccountResp, *SErr.APIErr)
 	RecoverAccountHomeDir(accountName string, force bool) (*ExecutorServiceRecoverAccountResp, *SErr.APIErr)
 	GetAccountHomeDir(accountName string) (*ExecutorServiceGetAccountHomeDirResp, *SErr.APIErr)
-
 
 	GetGPUHardware() (*ExecutorServiceGPUHardwareResp, *SErr.APIErr)
 	GetCPUHardware() (*ExecutorServiceCPUHardwareResp, *SErr.APIErr)
@@ -117,6 +118,11 @@ type ExecutorServiceVoidResp struct {
 type ExecutorServiceExistsResp struct {
 	ExecutorServiceRespCommon
 	Exists bool
+}
+
+type ExecutorServiceBoolResp struct {
+	ExecutorServiceRespCommon
+	Result bool
 }
 
 type ExecutorServiceBackupAccountResp struct {
@@ -167,11 +173,10 @@ type ExecutorServiceRemoteAccessResp struct {
 
 type ExecutorServiceGetBackupDirResp struct {
 	ExecutorServiceRespCommon
-	BackupDir string
+	BackupDir  string
 	PathExists bool
-	DirExists bool
+	DirExists  bool
 }
-
 
 // GetLinuxSSHExecutorService
 // 获取一个到某服务器的SSH Executor服务实例。建立新的ssh连接。在一次http请求中复用这个服务可以减少连接的创建数量。
@@ -199,15 +204,25 @@ func GetLinuxSSHExecutorService(host string, port uint, account, pwd string) (Ex
 	}
 	switch osType {
 	case Ubuntu:
-		return NewLinuxSSHExecutorServiceCommon(Ubuntu, account, pwd, SSHConn), nil
+		template := NewLinuxSSHExecutorServiceTemplate(Ubuntu, account, pwd, SSHConn)
+		ubuntuScv := NewUbuntuSSHExecutorService()
+		// golang 的模板方法需要上下两层分别持有引用。
+		template.implement = ubuntuScv
+		ubuntuScv.LinuxSSHExecutorServiceTemplate = template
+		return ubuntuScv, nil
 	case CentOS:
-		return NewLinuxSSHExecutorServiceCommon(CentOS, account, pwd, SSHConn), nil
+		template := NewLinuxSSHExecutorServiceTemplate(CentOS, account, pwd, SSHConn)
+		centosScv := NewCentOSSSHExecutorService()
+		// golang 的模板方法需要上下两层分别持有引用。
+		template.implement = centosScv
+		centosScv.LinuxSSHExecutorServiceTemplate = template
+		return NewLinuxSSHExecutorServiceTemplate(CentOS, account, pwd, SSHConn), nil
 	default:
 		panic("Unsupported LinuxOSType")
 	}
 }
 
-type LinuxSSHExecutorServiceCommon struct {
+type LinuxSSHExecutorServiceTemplate struct {
 	Host    string
 	Port    uint
 	Account string
@@ -219,33 +234,32 @@ type LinuxSSHExecutorServiceCommon struct {
 	ubuntuPath string
 	centosPath string
 
-	ubuntuService *UbuntuSSHExecutorService
+	implement ExecutorService
 }
 
-func NewLinuxSSHExecutorServiceCommon(osType LinuxOSType, Account string, Pwd string, SSHConn *LinuxSSHConnection) *LinuxSSHExecutorServiceCommon {
+func NewLinuxSSHExecutorServiceTemplate(osType LinuxOSType, Account string, Pwd string, SSHConn *LinuxSSHConnection) *LinuxSSHExecutorServiceTemplate {
 	csp := config.GetConfig().CmdsScriptsPath
 	ubuntu := path.Join(csp, "ubuntu")
 	common := path.Join(csp, "linux_common")
 	centos := path.Join(csp, "centos")
-	return &LinuxSSHExecutorServiceCommon{
-		Account:       Account,
-		Pwd:           Pwd,
-		OSType:        osType,
-		SSHConn:       SSHConn,
-		commonPath:    common,
-		ubuntuPath:    ubuntu,
-		centosPath:    centos,
-		ubuntuService: NewUbuntuSSHExecutorService(SSHConn),
+	return &LinuxSSHExecutorServiceTemplate{
+		Account:    Account,
+		Pwd:        Pwd,
+		OSType:     osType,
+		SSHConn:    SSHConn,
+		commonPath: common,
+		ubuntuPath: ubuntu,
+		centosPath: centos,
 	}
 
 }
 
-func (s *LinuxSSHExecutorServiceCommon) String() string {
-	return fmt.Sprintf("LinuxSSHExecutorServiceCommon=[Host=%s, Port=%d, Account=%s, Pwd=%s]", s.Host, s.Port, s.Account, s.Pwd)
+func (s *LinuxSSHExecutorServiceTemplate) String() string {
+	return fmt.Sprintf("LinuxSSHExecutorServiceTemplate=[Host=%s, Port=%d, Account=%s, Pwd=%s]", s.Host, s.Port, s.Account, s.Pwd)
 }
 
 // Move 移动文件或文件夹
-func (s *LinuxSSHExecutorServiceCommon) Move(src, dst string, force bool) (*ExecutorServiceVoidResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) Move(src, dst string, force bool) (*ExecutorServiceVoidResp, *SErr.APIErr) {
 	resp := &ExecutorServiceVoidResp{}
 	var cmd string
 	var err *SErr.APIErr
@@ -261,7 +275,7 @@ func (s *LinuxSSHExecutorServiceCommon) Move(src, dst string, force bool) (*Exec
 	cmd = fmt.Sprintf(cmd, src, dst)
 	output, err := s.SSHConn.SendCommands(cmd)
 	resp.Output = output
-	log.Printf("LinuxSSHExecutorServiceCommon=[%s], mv, cmd=[%s], output=[%s]", s, cmd, output)
+	log.Printf("LinuxSSHExecutorServiceTemplate=[%s], mv, cmd=[%s], output=[%s]", s, cmd, output)
 	if err != nil {
 		return resp, err
 	}
@@ -269,9 +283,9 @@ func (s *LinuxSSHExecutorServiceCommon) Move(src, dst string, force bool) (*Exec
 }
 
 // FileExists 检查文件是否存在
-func (s *LinuxSSHExecutorServiceCommon) FileExists(filepath string) (*ExecutorServiceExistsResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) FileExists(filepath string) (*ExecutorServiceExistsResp, *SErr.APIErr) {
 	resp := &ExecutorServiceExistsResp{}
-	pathExistsResp, err := s.PathExists(filepath)
+	pathExistsResp, err := s.implement.PathExists(filepath)
 	resp.Output = pathExistsResp.Output
 	if err != nil {
 		return resp, nil
@@ -302,9 +316,9 @@ func (s *LinuxSSHExecutorServiceCommon) FileExists(filepath string) (*ExecutorSe
 }
 
 // DirExists 检查文件夹是否存在
-func (s *LinuxSSHExecutorServiceCommon) DirExists(dirPath string) (*ExecutorServiceExistsResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) DirExists(dirPath string) (*ExecutorServiceExistsResp, *SErr.APIErr) {
 	resp := &ExecutorServiceExistsResp{}
-	pathExistsResp, err := s.PathExists(dirPath)
+	pathExistsResp, err := s.implement.PathExists(dirPath)
 	resp.Output = pathExistsResp.Output
 	if err != nil {
 		return resp, err
@@ -321,7 +335,7 @@ func (s *LinuxSSHExecutorServiceCommon) DirExists(dirPath string) (*ExecutorServ
 	cmd = fmt.Sprintf(cmd, dirPath)
 	output, err := s.SSHConn.SendCommands(cmd)
 	resp.Output = output
-	log.Printf("LinuxSSHExecutorServiceCommon=[%s] DirExists, cmd=[%s] output=[%s]", s, cmd, output)
+	log.Printf("LinuxSSHExecutorServiceTemplate=[%s] DirExists, cmd=[%s] output=[%s]", s, cmd, output)
 	if err != nil {
 		return resp, err
 	}
@@ -334,7 +348,7 @@ func (s *LinuxSSHExecutorServiceCommon) DirExists(dirPath string) (*ExecutorServ
 	}
 }
 
-func (s *LinuxSSHExecutorServiceCommon) PathExists(path string) (*ExecutorServiceExistsResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) PathExists(path string) (*ExecutorServiceExistsResp, *SErr.APIErr) {
 	resp := &ExecutorServiceExistsResp{}
 	cmd, err := loadCmdScript(s.commonPath, "path_exists")
 	if err != nil {
@@ -344,7 +358,7 @@ func (s *LinuxSSHExecutorServiceCommon) PathExists(path string) (*ExecutorServic
 	cmd = fmt.Sprintf(cmd, path, path)
 	output, err := s.SSHConn.SendCommands(cmd)
 	resp.Output = output
-	log.Printf("LinuxSSHExecutorServiceCommon=[%s] PathExists, cmd=[%s] output=[%s]", s, cmd, output)
+	log.Printf("LinuxSSHExecutorServiceTemplate=[%s] PathExists, cmd=[%s] output=[%s]", s, cmd, output)
 	if err != nil {
 		return resp, err
 	}
@@ -358,7 +372,7 @@ func (s *LinuxSSHExecutorServiceCommon) PathExists(path string) (*ExecutorServic
 }
 
 // Mkdir 创建文件夹，不检查文件夹是否存在。
-func (s *LinuxSSHExecutorServiceCommon) Mkdir(path string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) Mkdir(path string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
 	resp := &ExecutorServiceVoidResp{}
 	cmd, err := loadCmdScript(s.commonPath, "mkdir")
 	if err != nil {
@@ -374,15 +388,15 @@ func (s *LinuxSSHExecutorServiceCommon) Mkdir(path string) (*ExecutorServiceVoid
 }
 
 // MkdirIfNotExists 顾名思义
-func (s *LinuxSSHExecutorServiceCommon) MkdirIfNotExists(dirPath string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) MkdirIfNotExists(dirPath string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
 	resp := &ExecutorServiceVoidResp{}
-	pathExistsResp, err := s.PathExists(dirPath)
+	pathExistsResp, err := s.implement.PathExists(dirPath)
 	resp.Output = pathExistsResp.Output
 	if err != nil {
 		return resp, err
 	}
 	if !pathExistsResp.Exists {
-		resp, err := s.Mkdir(dirPath)
+		resp, err := s.implement.Mkdir(dirPath)
 		if err != nil {
 			return resp, err
 		}
@@ -391,7 +405,7 @@ func (s *LinuxSSHExecutorServiceCommon) MkdirIfNotExists(dirPath string) (*Execu
 }
 
 // GetCPUMemProcessesUsages 获取CPU，Mem占用，以及Process占用的信息。
-func (s *LinuxSSHExecutorServiceCommon) GetCPUMemProcessesUsages() (*ExecutorServiceCPUMemProcessesUsagesResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) GetCPUMemProcessesUsages() (*ExecutorServiceCPUMemProcessesUsagesResp, *SErr.APIErr) {
 	// top - 08:32:57 up 12 days,  5:24,  5 users,  load average: 1.86, 2.28, 2.49
 	// Tasks: 620 total,   1 running, 471 sleeping,   0 stopped,   0 zombie
 	// %Cpu(s): 11.1 us,  3.8 sy,  0.9 ni, 83.0 id,  0.1 wa,  0.0 hi,  1.0 si,  0.0 st
@@ -436,14 +450,13 @@ func (s *LinuxSSHExecutorServiceCommon) GetCPUMemProcessesUsages() (*ExecutorSer
 		if len(m) < 2 {
 			return
 		}
-		log.Printf("LinuxSSHExecutorServiceCommon GetCPUMemProcessesUsages matchCPU=[%+v]", util.Pretty(m))
+		log.Printf("LinuxSSHExecutorServiceTemplate GetCPUMemProcessesUsages matchCPU=[%+v]", util.Pretty(m))
 		f, err := strconv.ParseFloat(m[1], 64)
 		if err != nil {
-			log.Printf("LinuxSSHExecutorServiceCommon GetCPUMemProcessesUsages matchCPU=[%+v], parseFloat failed, err=[%+v]", util.Pretty(m), err)
+			log.Printf("LinuxSSHExecutorServiceTemplate GetCPUMemProcessesUsages matchCPU=[%+v], parseFloat failed, err=[%+v]", util.Pretty(m), err)
 			return
 		}
-		usage := fmt.Sprintf("%.2f%%", f)
-		resp.CPUMemUsage.UserProcCPUUsage = &usage
+		resp.CPUMemUsage.UserProcCPUUsage = &f
 	}
 	matchMem := func(line string) {
 		if resp.CPUMemUsage.MemUsage != nil {
@@ -454,15 +467,15 @@ func (s *LinuxSSHExecutorServiceCommon) GetCPUMemProcessesUsages() (*ExecutorSer
 		if len(m) < 4 {
 			return
 		}
-		log.Printf("LinuxSSHExecutorServiceCommon GetCPUMemProcessesUsages matchMem=[%+v]", util.Pretty(m))
+		log.Printf("LinuxSSHExecutorServiceTemplate GetCPUMemProcessesUsages matchMem=[%+v]", util.Pretty(m))
 		free, _ := util.ParseInt(m[1])
 		used, _ := util.ParseInt(m[2])
 		buff, _ := util.ParseInt(m[3])
 		if free == 0 || used == 0 || buff == 0 {
-			log.Printf("LinuxSSHExecutorServiceCommon GetCPUMemProcessesUsages matchMem=[%+v], parseInt return 0", m)
+			log.Printf("LinuxSSHExecutorServiceTemplate GetCPUMemProcessesUsages matchMem=[%+v], parseInt return 0", m)
 			return
 		}
-		usage := fmt.Sprintf("%.2f%%", 100*float64(used)/float64(free+used+buff))
+		usage := 100 * float64(used) / float64(free+used+buff)
 		resp.CPUMemUsage.MemUsage = &usage
 	}
 	matchProcLine := func(line string) {
@@ -491,14 +504,12 @@ func (s *LinuxSSHExecutorServiceCommon) GetCPUMemProcessesUsages() (*ExecutorSer
 		memUsage := splits[9]
 		memUsageF, err := strconv.ParseFloat(memUsage, 64)
 		command := splits[11]
-		cpuUsageStr := fmt.Sprintf("%.2f%%", cpuUsageF)
-		gpuUsageStr := fmt.Sprintf("%.2f%%", memUsageF)
 		resp.ProcessInfos = append(resp.ProcessInfos, &internal_models.ServerProcessInfo{
 			PID:              &pid,
 			Command:          &command,
 			OwnerAccountName: &user,
-			CPUUsage:         &cpuUsageStr,
-			MemUsage:         &gpuUsageStr,
+			CPUUsage:         &cpuUsageF,
+			MemUsage:         &memUsageF,
 			GPUUsage:         nil, // TODO
 		})
 	}
@@ -514,7 +525,7 @@ func (s *LinuxSSHExecutorServiceCommon) GetCPUMemProcessesUsages() (*ExecutorSer
 	return resp, nil
 }
 
-func (s *LinuxSSHExecutorServiceCommon) GetCPUHardware() (*ExecutorServiceCPUHardwareResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) GetCPUHardware() (*ExecutorServiceCPUHardwareResp, *SErr.APIErr) {
 	// Architecture:        x86_64
 	// CPU op-mode(s):      32-bit, 64-bit
 	// Byte Order:          Little Endian
@@ -560,7 +571,7 @@ func (s *LinuxSSHExecutorServiceCommon) GetCPUHardware() (*ExecutorServiceCPUHar
 		if len(m) < 2 {
 			return
 		}
-		log.Printf("LinuxSSHExecutorServiceCommon GetCPUHardware matchArch, line=[%s], m=[%+v]", line, m)
+		log.Printf("LinuxSSHExecutorServiceTemplate GetCPUHardware matchArch, line=[%s], m=[%+v]", line, m)
 		resp.CPU.Architecture = &m[1]
 	}
 	matchCores := func(line string) {
@@ -573,7 +584,7 @@ func (s *LinuxSSHExecutorServiceCommon) GetCPUHardware() (*ExecutorServiceCPUHar
 		if len(m) < 2 {
 			return
 		}
-		log.Printf("LinuxSSHExecutorServiceCommon GetCPUHardware matchCores, line=[%s], m=[%+v]", line, m)
+		log.Printf("LinuxSSHExecutorServiceTemplate GetCPUHardware matchCores, line=[%s], m=[%+v]", line, m)
 		cores, err := util.ParseInt(m[1])
 		if err != nil {
 			return
@@ -590,7 +601,7 @@ func (s *LinuxSSHExecutorServiceCommon) GetCPUHardware() (*ExecutorServiceCPUHar
 		if len(m) < 2 {
 			return
 		}
-		log.Printf("LinuxSSHExecutorServiceCommon GetCPUHardware matchThreadsPerCore, line=[%s], m=[%+v]", line, m)
+		log.Printf("LinuxSSHExecutorServiceTemplate GetCPUHardware matchThreadsPerCore, line=[%s], m=[%+v]", line, m)
 		threadsPerCore, err := util.ParseInt(m[1])
 		if err != nil {
 			return
@@ -607,7 +618,7 @@ func (s *LinuxSSHExecutorServiceCommon) GetCPUHardware() (*ExecutorServiceCPUHar
 		if len(m) < 2 {
 			return
 		}
-		log.Printf("LinuxSSHExecutorServiceCommon GetCPUHardware matchModelName, line=[%s], m=[%+v]", line, m)
+		log.Printf("LinuxSSHExecutorServiceTemplate GetCPUHardware matchModelName, line=[%s], m=[%+v]", line, m)
 		resp.CPU.ModelName = &m[1]
 	}
 	matchers := []func(line string){
@@ -624,7 +635,7 @@ func (s *LinuxSSHExecutorServiceCommon) GetCPUHardware() (*ExecutorServiceCPUHar
 	return resp, nil
 }
 
-func (s *LinuxSSHExecutorServiceCommon) GetGPUHardware() (*ExecutorServiceGPUHardwareResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) GetGPUHardware() (*ExecutorServiceGPUHardwareResp, *SErr.APIErr) {
 	// 17:00.0 VGA compatible controller: NVIDIA Corporation GV102 (rev a1)
 	// b3:00.0 VGA compatible controller: NVIDIA Corporation GV102 (rev a1)
 	resp := &ExecutorServiceGPUHardwareResp{}
@@ -646,7 +657,7 @@ func (s *LinuxSSHExecutorServiceCommon) GetGPUHardware() (*ExecutorServiceGPUHar
 		if len(m) < 2 {
 			return
 		}
-		log.Printf("LinuxSSHExecutorServiceCommon GetGPUHardware matchVGA, line=[%s], m=[%+v]", line, m)
+		log.Printf("LinuxSSHExecutorServiceTemplate GetGPUHardware matchVGA, line=[%s], m=[%+v]", line, m)
 		resp.GPUs = append(resp.GPUs, &internal_models.ServerGPU{
 			Product: &m[1],
 		})
@@ -658,7 +669,7 @@ func (s *LinuxSSHExecutorServiceCommon) GetGPUHardware() (*ExecutorServiceGPUHar
 	return resp, nil
 }
 
-func (s *LinuxSSHExecutorServiceCommon) GetMemoryHardware() (*ExecutorServiceMemoryHardwareResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) GetMemoryHardware() (*ExecutorServiceMemoryHardwareResp, *SErr.APIErr) {
 	resp := &ExecutorServiceMemoryHardwareResp{}
 	cmd, err := loadCmdScript(s.commonPath, "meminfo")
 	if err != nil {
@@ -690,21 +701,21 @@ func (s *LinuxSSHExecutorServiceCommon) GetMemoryHardware() (*ExecutorServiceMem
 }
 
 // GetBackupDir 获取备份文件夹路径。目前，就简单备份到/backup目录下，如果不存在则创建。
-func (s *LinuxSSHExecutorServiceCommon) GetBackupDir(accountName string) (*ExecutorServiceGetBackupDirResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) GetBackupDir(accountName string) (*ExecutorServiceGetBackupDirResp, *SErr.APIErr) {
 	resp := &ExecutorServiceGetBackupDirResp{}
 	backupDirPath := "/backup"
-	mkdirResp, err := s.MkdirIfNotExists(backupDirPath)
+	mkdirResp, err := s.implement.MkdirIfNotExists(backupDirPath)
 	resp.Output = mkdirResp.Output
 	if err != nil {
 		return resp, err
 	}
 	targetDirElem := fmt.Sprintf("%s.backup", accountName)
 	targetDir := path.Join(backupDirPath, targetDirElem)
-	dirExists, err := s.DirExists(targetDir)
+	dirExists, err := s.implement.DirExists(targetDir)
 	if err != nil {
 		return resp, err
 	}
-	pathExists, err := s.PathExists(targetDir)
+	pathExists, err := s.implement.PathExists(targetDir)
 	if err != nil {
 		return resp, err
 	}
@@ -714,15 +725,15 @@ func (s *LinuxSSHExecutorServiceCommon) GetBackupDir(accountName string) (*Execu
 	return resp, nil
 }
 
-// BackupAccountHomeDir 将某用户的用户文件夹mv到一份备份。
-func (s *LinuxSSHExecutorServiceCommon) BackupAccountHomeDir(accountName string) (*ExecutorServiceBackupAccountResp, *SErr.APIErr) {
+// BackupAccountHomeDir 将某用户的用户文件夹mv到一份备份。是模板方法
+func (s *LinuxSSHExecutorServiceTemplate) BackupAccountHomeDir(accountName string) (*ExecutorServiceBackupAccountResp, *SErr.APIErr) {
 	resp := &ExecutorServiceBackupAccountResp{}
-	getAccountHomeDirResp, err := s.GetAccountHomeDir(accountName)
+	getAccountHomeDirResp, err := s.implement.GetAccountHomeDir(accountName)
 	resp.Output = getAccountHomeDirResp.Output
 	if err != nil {
 		return resp, err
 	}
-	dirExists, err := s.DirExists(getAccountHomeDirResp.HomeDir)
+	dirExists, err := s.implement.DirExists(getAccountHomeDirResp.HomeDir)
 	resp.Output = dirExists.Output
 	if err != nil {
 		return resp, err
@@ -731,7 +742,7 @@ func (s *LinuxSSHExecutorServiceCommon) BackupAccountHomeDir(accountName string)
 		return resp, SErr.BackupDirNotExists.CustomMessageF("备份用户文件夹时，该用户的home目录文件夹不存在！该目录为%s", getAccountHomeDirResp.HomeDir)
 	}
 
-	getBackupDirResp, err := s.GetBackupDir(accountName)
+	getBackupDirResp, err := s.implement.GetBackupDir(accountName)
 	resp.Output = getBackupDirResp.Output
 	if err != nil {
 		return resp, err
@@ -740,7 +751,7 @@ func (s *LinuxSSHExecutorServiceCommon) BackupAccountHomeDir(accountName string)
 	if getBackupDirResp.PathExists {
 		return resp, SErr.BackupTargetDirAlreadyExists.CustomMessageF("备份用户文件夹时，目标的文件夹被占用！该目标路径为：%s", getBackupDirResp.BackupDir)
 	}
-	moveResp, err := s.Move(getAccountHomeDirResp.HomeDir, getBackupDirResp.BackupDir, false)
+	moveResp, err := s.implement.Move(getAccountHomeDirResp.HomeDir, getBackupDirResp.BackupDir, false)
 	resp.Output = moveResp.Output
 	if err != nil {
 		return resp, err
@@ -750,14 +761,14 @@ func (s *LinuxSSHExecutorServiceCommon) BackupAccountHomeDir(accountName string)
 }
 
 // RecoverAccountHomeDir 恢复备份的用户目录文件夹。调用该函数时需要保证该用户是存在的，否则无法使用GetAccountHomeDir获取到用户的home目录
-func (s *LinuxSSHExecutorServiceCommon) RecoverAccountHomeDir(accountName string, force bool) (*ExecutorServiceRecoverAccountResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) RecoverAccountHomeDir(accountName string, force bool) (*ExecutorServiceRecoverAccountResp, *SErr.APIErr) {
 	resp := &ExecutorServiceRecoverAccountResp{}
-	getAccountHomeDirResp, err := s.GetAccountHomeDir(accountName)
+	getAccountHomeDirResp, err := s.implement.GetAccountHomeDir(accountName)
 	resp.Output = getAccountHomeDirResp.Output
 	if err != nil {
 		return resp, err
 	}
-	pathExistsResp, err := s.PathExists(getAccountHomeDirResp.HomeDir)
+	pathExistsResp, err := s.implement.PathExists(getAccountHomeDirResp.HomeDir)
 	resp.Output = pathExistsResp.Output
 	if err != nil {
 		return resp, err
@@ -765,7 +776,7 @@ func (s *LinuxSSHExecutorServiceCommon) RecoverAccountHomeDir(accountName string
 	if pathExistsResp.Exists && !force {
 		return resp, SErr.BackupTargetDirAlreadyExists.CustomMessageF("您要恢复到的home文件夹已被占用！请避免覆盖数据！该目标路径为%s", getAccountHomeDirResp.HomeDir)
 	}
-	getBackupDirResp, err := s.GetBackupDir(accountName)
+	getBackupDirResp, err := s.implement.GetBackupDir(accountName)
 	resp.Output = getBackupDirResp.Output
 	if err != nil {
 		return resp, err
@@ -773,7 +784,7 @@ func (s *LinuxSSHExecutorServiceCommon) RecoverAccountHomeDir(accountName string
 	if !getBackupDirResp.DirExists {
 		return resp, SErr.BackupDirNotExists.CustomMessageF("恢复用户的目录文件夹时，该备份的文件夹不存在！其路径为：%s", getBackupDirResp.BackupDir)
 	}
-	moveResp, err := s.Move(getBackupDirResp.BackupDir, getAccountHomeDirResp.HomeDir, false)
+	moveResp, err := s.implement.Move(getBackupDirResp.BackupDir, getAccountHomeDirResp.HomeDir, false)
 	resp.Output = moveResp.Output
 	if err != nil {
 		return resp, err
@@ -782,7 +793,7 @@ func (s *LinuxSSHExecutorServiceCommon) RecoverAccountHomeDir(accountName string
 	return resp, nil
 }
 
-func (s *LinuxSSHExecutorServiceCommon) GetRemoteAccessInfos() (*ExecutorServiceRemoteAccessResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) GetRemoteAccessInfos() (*ExecutorServiceRemoteAccessResp, *SErr.APIErr) {
 	resp := &ExecutorServiceRemoteAccessResp{}
 	cmd, err := loadCmdScript(s.commonPath, "w")
 	if err != nil {
@@ -790,7 +801,7 @@ func (s *LinuxSSHExecutorServiceCommon) GetRemoteAccessInfos() (*ExecutorService
 	}
 	output, err := s.SSHConn.SendCommands(cmd)
 	resp.Output = output
-	log.Printf("LinuxSSHExecutorServiceCommon GetRemoteAccessInfos w executed, output=[%s], err=[%v]", output, err)
+	log.Printf("LinuxSSHExecutorServiceTemplate GetRemoteAccessInfos w executed, output=[%s], err=[%v]", output, err)
 	if err != nil {
 		return resp, err
 	}
@@ -817,9 +828,9 @@ func (s *LinuxSSHExecutorServiceCommon) GetRemoteAccessInfos() (*ExecutorService
 	return resp, nil
 }
 
-func (s *LinuxSSHExecutorServiceCommon) GetGPUUsages() (*ExecutorServiceVoidResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) GetGPUUsages() (*ExecutorServiceVoidResp, *SErr.APIErr) {
 	resp := &ExecutorServiceVoidResp{}
-	gpuHardwareResp, err := s.GetGPUHardware()
+	gpuHardwareResp, err := s.implement.GetGPUHardware()
 	if err != nil {
 		return resp, err
 	}
@@ -848,65 +859,39 @@ func (s *LinuxSSHExecutorServiceCommon) GetGPUUsages() (*ExecutorServiceVoidResp
 		}
 		return resp, nil
 	}
-	log.Printf("LinuxSSHExecutorServiceCommon GetGPUUsages no cuda gpu, skip.")
+	log.Printf("LinuxSSHExecutorServiceTemplate GetGPUUsages no cuda gpu, skip.")
 	return resp, nil
 }
 
-func (s *LinuxSSHExecutorServiceCommon) AddAccount(accountName, pwd string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
-	switch s.OSType {
-	case Ubuntu:
-		return s.ubuntuService.AddAccount(accountName, pwd)
-	default:
-		panic("Unimplemented")
-	}
+func (s *LinuxSSHExecutorServiceTemplate) AddAccount(accountName, pwd string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
+	panic("Template Method Call Is Not Allowed.")
 }
 
-func (s *LinuxSSHExecutorServiceCommon) DeleteAccount(accountName string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
-	switch s.OSType {
-	case Ubuntu:
-		return s.ubuntuService.DeleteAccount(accountName)
-	default:
-		panic("Unimplemented")
-	}
+func (s *LinuxSSHExecutorServiceTemplate) DeleteAccount(accountName string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
+	panic("Template Method Call Is Not Allowed.")
 }
 
-func (s *LinuxSSHExecutorServiceCommon) GetAccountHomeDir(accountName string) (*ExecutorServiceGetAccountHomeDirResp, *SErr.APIErr) {
-	switch s.OSType {
-	case Ubuntu:
-		return s.ubuntuService.GetAccountHomeDir(accountName)
-	default:
-		panic("Unimplemented")
-	}
+func (s *LinuxSSHExecutorServiceTemplate) GetAccountHomeDir(accountName string) (*ExecutorServiceGetAccountHomeDirResp, *SErr.APIErr) {
+	panic("Template Method Call Is Not Allowed.")
 }
 
-func (s *LinuxSSHExecutorServiceCommon) GetAccountList() (*ExecutorServiceGetAccountListResp, *SErr.APIErr) {
-	switch s.OSType {
-	case Ubuntu:
-		return s.ubuntuService.GetAccountList()
-	default:
-		panic("Unimplemented")
-	}
+func (s *LinuxSSHExecutorServiceTemplate) GetAccountList() (*ExecutorServiceGetAccountListResp, *SErr.APIErr) {
+	panic("Template Method Call Is Not Allowed.")
 }
 
-func (s *LinuxSSHExecutorServiceCommon) Close() error {
-	switch s.OSType {
-	case Ubuntu:
-		return s.ubuntuService.Close()
-	default:
-		panic("Unimplemented")
-	}
+func (s *LinuxSSHExecutorServiceTemplate) Close() error {
+	panic("Template Method Call Is Not Allowed.")
 }
 
 type UbuntuSSHExecutorService struct {
-	SSHConn    *LinuxSSHConnection
+	*LinuxSSHExecutorServiceTemplate
 	ubuntuPath string
 }
 
-func NewUbuntuSSHExecutorService(SSHConn *LinuxSSHConnection) *UbuntuSSHExecutorService {
+func NewUbuntuSSHExecutorService() *UbuntuSSHExecutorService {
 	pCmdScrPath := config.GetConfig().CmdsScriptsPath
 	ubuntu := path.Join(pCmdScrPath, "ubuntu")
 	return &UbuntuSSHExecutorService{
-		SSHConn:    SSHConn,
 		ubuntuPath: ubuntu,
 	}
 }
@@ -1142,7 +1127,8 @@ type LinuxSSHConnection struct {
 
 func ConnectLinuxSSH(Host string, Port uint, account, password string) (*LinuxSSHConnection, *SErr.APIErr) {
 	sshConfig := &ssh.ClientConfig{
-		User: account,
+		Timeout: 10 * time.Second,
+		User:    account,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(password),
 		},
@@ -1297,4 +1283,17 @@ func (conn *LinuxSSHConnection) SendCommands(cmds ...string) (string, *SErr.APIE
 		outs = append(outs, str)
 	}
 	return strings.Join(outs, "\n"), nil
+}
+
+type CentOSSSHExecutorService struct {
+	*LinuxSSHExecutorServiceTemplate
+	centOSPath string
+}
+
+func NewCentOSSSHExecutorService() *CentOSSSHExecutorService {
+	pCmdScrPath := config.GetConfig().CmdsScriptsPath
+	centos := path.Join(pCmdScrPath, "centos")
+	return &CentOSSSHExecutorService{
+		centOSPath: centos,
+	}
 }
