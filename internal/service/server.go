@@ -283,14 +283,14 @@ func (s *ServersService) loadHardwareInfo(es ExecutorService, arg *internal_mode
 				Output:     "",
 				FailedInfo: nil,
 			},
-			CPUHardwareInfo: nil,
+			Info: nil,
 		},
 		GPUHardwareInfos: &internal_models.ServerGPUHardwareInfos{
 			ServerInfoCommon: &internal_models.ServerInfoCommon{
 				Output:     "",
 				FailedInfo: nil,
 			},
-			GPUInfos: nil,
+			Infos: nil,
 		},
 	}
 	// CPU
@@ -301,7 +301,7 @@ func (s *ServersService) loadHardwareInfo(es ExecutorService, arg *internal_mode
 			CauseDescription: fmt.Sprintf("向服务器查询cpu数据时出错！es=[%s]，出错信息为：[%s]", es, err.Error()),
 		}
 	}
-	serverInfo.HardwareInfo.CPUHardwareInfo.CPUHardwareInfo = cpuResp.CPU
+	serverInfo.HardwareInfo.CPUHardwareInfo.Info = cpuResp.CPU
 	// GPU
 	gpuResp, err := es.GetGPUHardware()
 	serverInfo.HardwareInfo.GPUHardwareInfos.Output = gpuResp.Output
@@ -310,7 +310,7 @@ func (s *ServersService) loadHardwareInfo(es ExecutorService, arg *internal_mode
 			CauseDescription: fmt.Sprintf("向服务器查询gpu数据时出错！es=[%s]，出错信息为：[%s]", es, err.Error()),
 		}
 	}
-	serverInfo.HardwareInfo.GPUHardwareInfos.GPUInfos = gpuResp.GPUs
+	serverInfo.HardwareInfo.GPUHardwareInfos.Infos = gpuResp.GPUs
 }
 
 // loadRemoteAccessUsages 加载正在远程访问该Server的用户使用信息。
@@ -323,7 +323,7 @@ func (s *ServersService) loadRemoteAccessUsages(es ExecutorService, arg *interna
 			Output:     "",
 			FailedInfo: nil,
 		},
-		RemoteAccessingAccountInfos: nil,
+		Infos: nil,
 	}
 	resp, err := es.GetRemoteAccessInfos()
 	serverInfo.RemoteAccessingUsageInfo.Output = resp.Output
@@ -333,7 +333,7 @@ func (s *ServersService) loadRemoteAccessUsages(es ExecutorService, arg *interna
 		}
 		return
 	}
-	serverInfo.RemoteAccessingUsageInfo.RemoteAccessingAccountInfos = resp.RemoteAccessingAccountInfos
+	serverInfo.RemoteAccessingUsageInfo.Infos = resp.RemoteAccessingAccountInfos
 }
 
 // loadGPUUsages 加载GPU的使用情况

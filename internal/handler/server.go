@@ -124,7 +124,7 @@ func (ServerHandler) Infos(c *gin.Context) (interface{}, *SErr.APIErr) {
 		return nil, sErr
 	}
 	return &models.ServerInfosResponse{
-		ServerInfos: infos,
+		Infos: infos,
 		TotalCount:  totalCount,
 	}, nil
 }

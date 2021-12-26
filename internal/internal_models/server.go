@@ -32,7 +32,7 @@ type ServerInfoRequest struct {
 }
 
 type ServerInfoResponse struct {
-	ServerInfo *ServerInfo
+	*ServerInfo
 }
 
 type ServerInfosRequest struct {
@@ -43,8 +43,8 @@ type ServerInfosRequest struct {
 }
 
 type ServerInfosResponse struct {
-	ServerInfos []*ServerInfo
-	TotalCount  uint
+	Infos []*ServerInfo `json:"infos"`
+	TotalCount  uint `json:"total_count"`
 }
 
 type LoadServerDetailArg struct {
@@ -116,7 +116,7 @@ type ServerAccount struct {
 
 	BackupDirInfo *ServerAccountBackupDirInfo `json:"backup_dir_info"`
 
-	Server ServerBasic `json:"server"`
+	Server ServerBasic `json:"-"`
 }
 
 type ServerAccountBackupDirInfo struct {
@@ -129,7 +129,7 @@ type ServerAccountBackupDirInfo struct {
 
 // ServerInfoLoadingFailedInfo 描述一个服务器的某部分内容加载失败的原因，以及当时服务器的原始输出。
 type ServerInfoLoadingFailedInfo struct {
-	CauseDescription string // 描述具体原因。
+	CauseDescription string `json:"cause_description"`// 描述具体原因。
 }
 
 // ServerInfoCommon 每个Server的信息都要包含的结构。它描述了获取该信息时是否失败，以及对应的服务器原始输出。
@@ -175,7 +175,7 @@ type ServerCPUHardwareInfo struct {
 	// Flags:               fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm constant_tsc rep_good nopl nonstop_tsc cpuid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch invpcid_single pti ibrs ibpb stibp fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm rdseed adx smap xsaveopt arat
 	*ServerInfoCommon
 
-	CPUHardwareInfo *ServerCPUs
+	Info *ServerCPUs `json:"info"`
 }
 
 type ServerCPUs struct {
@@ -192,7 +192,7 @@ type ServerCPUs struct {
 type ServerGPUHardwareInfos struct {
 	*ServerInfoCommon
 
-	GPUInfos []*ServerGPU `json:"gpu_infos"`
+	Infos []*ServerGPU `json:"infos"`
 }
 
 type ServerGPU struct {
@@ -203,11 +203,11 @@ type ServerGPU struct {
 type ServerMemoryHardwareInfo struct {
 	*ServerInfoCommon
 
-	MemoryStats *ServerMemory
+	MemoryStats *ServerMemory `json:"memory_stats"`
 }
 
 type ServerMemory struct {
-	TotalMemory *string
+	TotalMemory *string `json:"total_memory"`
 }
 
 func (g ServerGPU) IsNvidia() bool {
@@ -224,7 +224,7 @@ type ServerAccountInfos struct {
 type ServerRemoteAccessingUsagesInfo struct {
 	*ServerInfoCommon
 
-	RemoteAccessingAccountInfos []*ServerRemoteAccessingAccountInfo `json:"remote_accessing_account_infos"`
+	Infos []*ServerRemoteAccessingAccountInfo `json:"infos"`
 }
 
 // ServerRemoteAccessingAccountInfo 表示一个正在远端访问的用户的信息。
@@ -240,7 +240,7 @@ type ServerCPUMemProcessesUsageInfo struct {
 	*ServerInfoCommon
 
 	// CPUMemUsage 服务器总的CPU，内存使用率。
-	CPUMemUsage *ServerCPUMemUsage
+	CPUMemUsage *ServerCPUMemUsage `json:"cpu_mem_usage"`
 
 	// ProcessInfos 全部进程信息。
 	ProcessInfos []*ServerProcessInfo `json:"process_infos"`
