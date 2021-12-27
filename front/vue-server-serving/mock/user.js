@@ -29,7 +29,8 @@ module.exports = [
     url: '/vue-element-admin/user/login',
     type: 'post',
     response: config => {
-      const { username } = config.body
+      const { username, password } = config.body
+      console.log('user login', username, password)
       const token = tokens[username]
 
       // mock error
@@ -54,6 +55,7 @@ module.exports = [
     response: config => {
       const { token } = config.query
       const info = users[token]
+      console.log('get user info called, info', info)
 
       // mock error
       if (!info) {
@@ -77,7 +79,7 @@ module.exports = [
     response: _ => {
       return {
         code: 20000,
-        data: 'success'
+        data: {}
       }
     }
   }

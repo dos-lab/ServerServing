@@ -29,6 +29,7 @@ import * as filters from './filters' // global filters
  * please remove it before going online ! ! !
  */
 if (process.env.NODE_ENV === 'production') {
+  console.log('use mock')
   const { mockXHR } = require('../mock')
   mockXHR()
 }

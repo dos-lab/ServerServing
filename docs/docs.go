@@ -281,6 +281,56 @@ var doc = `{
                 }
             }
         },
+        "/api/v1/servers/connections/{host}/{port}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "server"
+                ],
+                "summary": "测试连通性",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "host",
+                        "name": "host",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "port",
+                        "name": "port",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "name": "account_name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "account_pwd",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "name": "os_type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerConnectionTestResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/servers/{host}/{port}": {
             "get": {
                 "produces": [
@@ -539,6 +589,12 @@ var doc = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "x-token",
+                        "name": "x-token",
+                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -574,6 +630,13 @@ var doc = `{
                         "schema": {
                             "$ref": "#/definitions/internal_models.UsersUpdateRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "x-token",
+                        "name": "x-token",
+                        "in": "header",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -629,9 +692,6 @@ var doc = `{
                 },
                 "pwd": {
                     "type": "string"
-                },
-                "server": {
-                    "$ref": "#/definitions/internal_models.ServerBasic"
                 },
                 "uid": {
                     "type": "integer"
@@ -762,7 +822,7 @@ var doc = `{
                     "description": "Recover 该账户是从删除的账户中恢复",
                     "type": "boolean"
                 },
-                "recoverBackup": {
+                "recover_backup": {
                     "description": "RecoverBackup 指定是否要恢复backup的用户目录文件夹。",
                     "type": "boolean"
                 }
@@ -803,11 +863,11 @@ var doc = `{
         "internal_models.ServerCPUHardwareInfo": {
             "type": "object",
             "properties": {
-                "cpuhardwareInfo": {
-                    "$ref": "#/definitions/internal_models.ServerCPUs"
-                },
                 "failed_info": {
                     "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "info": {
+                    "$ref": "#/definitions/internal_models.ServerCPUs"
                 },
                 "output": {
                     "type": "string"
@@ -817,7 +877,7 @@ var doc = `{
         "internal_models.ServerCPUMemProcessesUsageInfo": {
             "type": "object",
             "properties": {
-                "cpumemUsage": {
+                "cpu_mem_usage": {
                     "description": "CPUMemUsage 服务器总的CPU，内存使用率。",
                     "$ref": "#/definitions/internal_models.ServerCPUMemUsage"
                 },
@@ -839,6 +899,10 @@ var doc = `{
         "internal_models.ServerCPUMemUsage": {
             "type": "object",
             "properties": {
+                "mem_total": {
+                    "description": "MemTotal 内存总量，使用字符串固定死",
+                    "type": "string"
+                },
                 "mem_usage": {
                     "description": "MemUsage 总内存使用（比例：如3600MB/8000MB）",
                     "type": "number"
@@ -867,6 +931,17 @@ var doc = `{
                 "threads_per_core": {
                     "description": "ThreadsPerCore 每个核心可以跑几个线程",
                     "type": "integer"
+                }
+            }
+        },
+        "internal_models.ServerConnectionTestResponse": {
+            "type": "object",
+            "properties": {
+                "cause": {
+                    "type": "string"
+                },
+                "connected": {
+                    "type": "boolean"
                 }
             }
         },
@@ -922,7 +997,7 @@ var doc = `{
                 "failed_info": {
                     "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
                 },
-                "gpu_infos": {
+                "infos": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/internal_models.ServerGPU"
@@ -997,7 +1072,7 @@ var doc = `{
         "internal_models.ServerInfoLoadingFailedInfo": {
             "type": "object",
             "properties": {
-                "causeDescription": {
+                "cause_description": {
                     "description": "描述具体原因。",
                     "type": "string"
                 }
@@ -1006,21 +1081,46 @@ var doc = `{
         "internal_models.ServerInfoResponse": {
             "type": "object",
             "properties": {
-                "serverInfo": {
-                    "$ref": "#/definitions/internal_models.ServerInfo"
+                "access_failed_info": {
+                    "description": "AccessFailedInfo 指定了当该服务器连接失败时的信息。如果该字段不为空，那么其他字段才有意义。",
+                    "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
+                },
+                "account_infos": {
+                    "description": "AccountInfos 记录服务器账户信息。",
+                    "$ref": "#/definitions/internal_models.ServerAccountInfos"
+                },
+                "basic": {
+                    "description": "Basic 基本的Server目录信息",
+                    "$ref": "#/definitions/internal_models.ServerBasic"
+                },
+                "cpu_mem_processes_usage_info": {
+                    "description": "CPUMemProcessesUsageInfo CPU，内存，进程的使用资源信息。（Top指令）",
+                    "$ref": "#/definitions/internal_models.ServerCPUMemProcessesUsageInfo"
+                },
+                "hardware_info": {
+                    "description": "ServerHardwareInfo 硬件元信息",
+                    "$ref": "#/definitions/internal_models.ServerHardwareInfo"
+                },
+                "remote_accessing_usage_info": {
+                    "description": "RemoteAccessingUsageInfo 正在从远端访问的用户的使用信息",
+                    "$ref": "#/definitions/internal_models.ServerRemoteAccessingUsagesInfo"
+                },
+                "server_gpu_usage_info": {
+                    "description": "GPUUsageInfo 当前该Server总的GPU利用率信息。（当前为string，具体待定）",
+                    "$ref": "#/definitions/internal_models.ServerGPUUsageInfo"
                 }
             }
         },
         "internal_models.ServerInfosResponse": {
             "type": "object",
             "properties": {
-                "serverInfos": {
+                "infos": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/internal_models.ServerInfo"
                     }
                 },
-                "totalCount": {
+                "total_count": {
                     "type": "integer"
                 }
             }
@@ -1078,14 +1178,14 @@ var doc = `{
                 "failed_info": {
                     "$ref": "#/definitions/internal_models.ServerInfoLoadingFailedInfo"
                 },
-                "output": {
-                    "type": "string"
-                },
-                "remote_accessing_account_infos": {
+                "infos": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/internal_models.ServerRemoteAccessingAccountInfo"
                     }
+                },
+                "output": {
+                    "type": "string"
                 }
             }
         },
@@ -1109,7 +1209,12 @@ var doc = `{
             }
         },
         "internal_models.SessionsCreateResponse": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
         },
         "internal_models.SessionsDestroyRequest": {
             "type": "object"
@@ -1124,7 +1229,7 @@ var doc = `{
                     "type": "boolean"
                 },
                 "created_at": {
-                    "type": "string"
+                    "type": "integer"
                 },
                 "id": {
                     "type": "integer"
@@ -1136,7 +1241,7 @@ var doc = `{
                     "type": "string"
                 },
                 "updated_at": {
-                    "type": "string"
+                    "type": "integer"
                 }
             }
         },
@@ -1152,7 +1257,12 @@ var doc = `{
             }
         },
         "internal_models.UsersCreateResponse": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string"
+                }
+            }
         },
         "internal_models.UsersInfoResponse": {
             "type": "object",
@@ -1161,7 +1271,7 @@ var doc = `{
                     "type": "boolean"
                 },
                 "created_at": {
-                    "type": "string"
+                    "type": "integer"
                 },
                 "id": {
                     "type": "integer"
@@ -1173,7 +1283,7 @@ var doc = `{
                     "type": "string"
                 },
                 "updated_at": {
-                    "type": "string"
+                    "type": "integer"
                 }
             }
         },

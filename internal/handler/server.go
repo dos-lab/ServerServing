@@ -5,13 +5,50 @@ import (
 	models "ServerServing/internal/internal_models"
 	"ServerServing/internal/service"
 	"ServerServing/util"
+	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"log"
 )
 
 type ServerHandler struct{}
 
 func GetServerHandler() *ServerHandler {
 	return &ServerHandler{}
+}
+
+// ConnectionTest
+// @Summary 测试连通性
+// @Tags server
+// @Produce json
+// @Router /api/v1/servers/connections/{host}/{port} [get]
+// @param host path string true "host"
+// @param port path uint true "port"
+// @Param serverConnectionTestRequest query internal_models.ServerConnectionTestRequest true "serverConnectionTestRequest"
+// @Success 200 {object} internal_models.ServerConnectionTestResponse
+func (ServerHandler) ConnectionTest(c *gin.Context) (interface{}, *SErr.APIErr) {
+	host := c.Param("host")
+	portStr := c.Param("port")
+	port, err := util.ParseInt(portStr)
+	if err != nil || port <= 0 {
+		return nil, SErr.BadRequestErr.CustomMessageF("请求的Port不为整数！或者Port <= 0")
+	}
+	req := &models.ServerConnectionTestRequest{}
+	reqStr, _ := json.Marshal(req)
+	log.Printf("ServerHandler ConnectionTest reqStr=[%s]", reqStr)
+	e := c.ShouldBindQuery(req)
+	if e != nil {
+		return nil, SErr.BadRequestErr
+	}
+
+	serversSvc := service.GetServersService()
+	sErr := serversSvc.ConnectionTest(c, host, uint(port), req.OSType, req.AccountName, req.AccountPwd)
+	if sErr != nil {
+		return &models.ServerConnectionTestResponse{
+			Connected: false,
+			Cause:     sErr.Message,
+		}, nil
+	}
+	return &models.ServerConnectionTestResponse{Connected: true}, nil
 }
 
 // Create
@@ -124,7 +161,7 @@ func (ServerHandler) Infos(c *gin.Context) (interface{}, *SErr.APIErr) {
 		return nil, sErr
 	}
 	return &models.ServerInfosResponse{
-		Infos: infos,
-		TotalCount:  totalCount,
+		Infos:      infos,
+		TotalCount: totalCount,
 	}, nil
 }

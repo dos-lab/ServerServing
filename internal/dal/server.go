@@ -118,7 +118,7 @@ func (s ServerDal) SearchByHostAndAdmin(from, size uint, keyword string, withAcc
 	var servers []*daModels.Server
 	var count int64
 	db := mysql.GetDB()
-	query := "Host LIKE ? or AdminAccountName LIKE ?"
+	query := "Host LIKE ? or admin_account_name LIKE ?"
 	args := []interface{}{"%" + keyword + "%", "%" + keyword + "%"}
 	res := db.Model(&daModels.Server{}).Where(query, args...).Count(&count)
 	if res.Error != nil {

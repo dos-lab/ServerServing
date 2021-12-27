@@ -35,6 +35,7 @@ func (s *ServersService) accountNameExists(c *gin.Context, es ExecutorService, H
 	serverInfo := &internal_models.ServerInfo{}
 	s.loadInfoFromServer(serverInfo, es, &internal_models.LoadServerDetailArg{
 		WithAccounts: true,
+		WithAccountsIgnoreDBAccounts: true,
 	})
 	if serverInfo.AccountInfos.FailedInfo != nil {
 		msg := fmt.Sprintf("查询账户列表时出错！出错信息为：AccountInfos=[%s], Host=[%s], Port=[%d], AccountName=[%s]", util.Pretty(serverInfo.AccountInfos), Host, Port, AccountName)

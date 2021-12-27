@@ -36,11 +36,13 @@ func TestSSHExecutorService_CreateAccount(t *testing.T) {
 
 func TestSSHExecutorService_DeleteAccount(t *testing.T) {
 	config.InitConfigWithFile("/Users/purchaser/go/src/ServerServing/config.yml", "dev")
-	s, err := OpenLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
+	// s, err := OpenLinuxSSHExecutorService("47.93.56.75", 22, "someuser", "zhjT9910123!")
+	s, err := OpenLinuxSSHExecutorService("133.133.135.42", 22, "yzc", "zhjt9910")
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, e := s.DeleteAccount("user_created_by_golang_1")
+	resp, e := s.DeleteAccount("yzc_test")
+	t.Log(resp)
 	if e != nil {
 		t.Fatal(e)
 	}

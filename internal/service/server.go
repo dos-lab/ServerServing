@@ -19,6 +19,15 @@ func GetServersService() *ServersService {
 	return &ServersService{}
 }
 
+func (s *ServersService) ConnectionTest(c *gin.Context, Host string, Port uint, OSType daModels.OSType, accountName, accountPwd string) *SErr.APIErr {
+	es, err := OpenExecutorService(Host, Port, OSType, accountName, accountPwd)
+	if err != nil {
+		return err
+	}
+	defer es.Close()
+	return nil
+}
+
 func (s *ServersService) Create(c *gin.Context, Host string, Port uint, OSType daModels.OSType, adminAccountName, adminAccountPwd string) *SErr.APIErr {
 	es, err := OpenExecutorService(Host, Port, OSType, adminAccountName, adminAccountPwd)
 	if err != nil {
@@ -80,13 +89,15 @@ func (s *ServersService) Info(c *gin.Context, Host string, Port uint, arg *inter
 	}
 	// 第二步，初始化到该服务器的连接，如果连接失败，则直接返回错误。
 	es, err := s.openExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
+	if err != nil {
+		serverInfo.AccessFailedInfo = &internal_models.ServerInfoLoadingFailedInfo{
+			CauseDescription: err.Message,
+		}
+		return serverInfo, err
+	}
 	defer func() {
 		_ = es.Close()
 	}()
-	if err != nil {
-		serverInfo.AccessFailedInfo.CauseDescription = err.Message
-		return serverInfo, err
-	}
 	s.loadInfoFromServer(serverInfo, es, arg)
 	return serverInfo, nil
 }
@@ -137,7 +148,7 @@ func (s *ServersService) Infos(c *gin.Context, from, size uint, arg *internal_mo
 	var servers []*daModels.Server
 	var total uint
 	var err *SErr.APIErr
-	if keyword != nil {
+	if keyword != nil && *keyword != "" {
 		servers, total, err = serverDal.SearchByHostAndAdmin(from, size, *keyword, arg.WithAccounts)
 	} else {
 		servers, total, err = serverDal.List(from, size, arg.WithAccounts)
@@ -160,12 +171,14 @@ func (s *ServersService) Infos(c *gin.Context, from, size uint, arg *internal_mo
 			}
 			// 第二步，初始化到该服务器的连接，如果连接失败，则直接返回错误。
 			es, err := s.openExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
-			defer func() {
-				_ = es.Close()
-			}()
 			if err != nil {
-				serverInfo.AccessFailedInfo.CauseDescription = err.Message
+				serverInfo.AccessFailedInfo = &internal_models.ServerInfoLoadingFailedInfo{
+					CauseDescription: err.Message,
+				}
 			} else {
+				defer func() {
+					_ = es.Close()
+				}()
 				s.loadInfoFromServer(serverInfo, es, arg)
 			}
 			mu.Lock()
@@ -181,8 +194,10 @@ func (s *ServersService) loadAccounts(es ExecutorService, arg *internal_models.L
 	if arg.WithAccounts == false {
 		return
 	}
-	if serverInfo.AccountInfos == nil {
-		serverInfo.AccountInfos = &internal_models.ServerAccountInfos{}
+	if serverInfo.AccountInfos == nil || arg.WithAccountsIgnoreDBAccounts {
+		serverInfo.AccountInfos = &internal_models.ServerAccountInfos{
+			Accounts: make([]*internal_models.ServerAccount, 0, 4),
+		}
 	}
 	serverInfo.AccountInfos.ServerInfoCommon = &internal_models.ServerInfoCommon{}
 	getAccountListResp, err := es.GetAccountList()
@@ -198,8 +213,28 @@ func (s *ServersService) loadAccounts(es ExecutorService, arg *internal_models.L
 		accountsInServerMap[accountInServer.Name] = accountInServer
 	}
 
+	// 如果忽略DB的账户，需要将server中得到数据赋值到serverInfo中
+	if arg.WithAccountsIgnoreDBAccounts {
+		for _, accInServer := range accountsInServerMap {
+			serverInfo.AccountInfos.Accounts = append(serverInfo.AccountInfos.Accounts, accInServer)
+		}
+	}
+
+	// 如果不忽略DB账户，需要将DB得到的数据与server得到的数据进行合并
+	if !arg.WithAccountsIgnoreDBAccounts {
+		s.combineDBAccounts(es, serverInfo, accountsInServerMap)
+	}
+
+	s.loadAccountBackupDirInfos(es, arg, serverInfo)
+}
+
+func (s *ServersService) combineDBAccounts(es ExecutorService, serverInfo *internal_models.ServerInfo, originalAccountsInServerMap map[string]*internal_models.ServerAccount) {
+	copiedMap := make(map[string]*internal_models.ServerAccount)
+	for acc, serverAcc := range originalAccountsInServerMap {
+		copiedMap[acc] = serverAcc
+	}
 	for _, acc := range serverInfo.AccountInfos.Accounts {
-		if accInServer, ok := accountsInServerMap[acc.Name]; ok {
+		if accInServer, ok := copiedMap[acc.Name]; ok {
 			// 当从服务器中查询到了Account与从MySQL中一样的账户，则补全信息。
 			// 在MySQL中没有存储的信息，将它们补全。
 			acc.UID = accInServer.UID
@@ -209,36 +244,35 @@ func (s *ServersService) loadAccounts(es ExecutorService, arg *internal_models.L
 			// 那么，即该账户可能是在Server中被擅自删除了，那么这时先给该账户打一个标记。
 			acc.NotExistsInServer = true
 		}
-		delete(accountsInServerMap, acc.Name)
+		delete(copiedMap, acc.Name)
 	}
 
-	if len(accountsInServerMap) > 0 {
-		// 剩余的在accountsInServerMap中，没有被遍历到的账户，
-		// 则代表该账户在Server中存在，但是在MySQL中没有存储。
-		// 所以将它们插入到MySQL中。
-		toBeInserted := make([]*daModels.Account, 0, len(accountsInServerMap))
-		for _, accountInServer := range accountsInServerMap {
-			toBeInserted = append(toBeInserted, &daModels.Account{
-				Name: accountInServer.Name,
-				Pwd:  accountInServer.Pwd,
-				Host: accountInServer.Host,
-				Port: accountInServer.Port,
-			})
-		}
-		accDal := dal.GetAccountDal()
-		err := accDal.Upsert(toBeInserted)
-		if err != nil {
-			// 非关键错误，仅仅打印log即可。
-			log.Printf("ServersService Upsert 不在MySQL中的账户时失败！es=[%s], 错误为：[%s]", es, err.Error())
-		}
-		// 插入到MySQL后，将他们补全到serverInfo中。
-		for _, accInServer := range accountsInServerMap {
-			serverInfo.AccountInfos.Accounts = append(serverInfo.AccountInfos.Accounts, accInServer)
-		}
+	if len(copiedMap) == 0 {
+		return
 	}
 
-	s.loadAccountBackupDirInfos(es, arg, serverInfo)
-
+	// 剩余的在accountsInServerMap中，没有被遍历到的账户，
+	// 则代表该账户在Server中存在，但是在MySQL中没有存储。
+	// 所以将它们插入到MySQL中。
+	toBeInserted := make([]*daModels.Account, 0, len(copiedMap))
+	for _, accountInServer := range copiedMap {
+		toBeInserted = append(toBeInserted, &daModels.Account{
+			Name: accountInServer.Name,
+			Pwd:  accountInServer.Pwd,
+			Host: accountInServer.Host,
+			Port: accountInServer.Port,
+		})
+	}
+	accDal := dal.GetAccountDal()
+	err := accDal.Upsert(toBeInserted)
+	if err != nil {
+		// 非关键错误，仅仅打印log即可。
+		log.Printf("ServersService Upsert 不在MySQL中的账户时失败！es=[%s], 错误为：[%s]", es, err.Error())
+	}
+	// 插入到MySQL后，将他们补全到serverInfo中。
+	for _, accInServer := range copiedMap {
+		serverInfo.AccountInfos.Accounts = append(serverInfo.AccountInfos.Accounts, accInServer)
+	}
 }
 
 func (s *ServersService) loadAccountBackupDirInfos(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {

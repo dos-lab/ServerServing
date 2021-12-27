@@ -78,11 +78,11 @@ func (UserDal) SearchByName(keyword string, from, size int) ([]*daModels.User, i
 	var users []*daModels.User
 	var count int64
 	db := mysql.GetDB()
-	res := db.Model(&daModels.User{}).Where("name LIKE ?", "%"+keyword+"%").Order("CreatedAt desc").Count(&count)
+	res := db.Model(&daModels.User{}).Where("name LIKE ?", "%"+keyword+"%").Order("created_at desc").Count(&count)
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessage(res.Error.Error())
 	}
-	res = db.Model(&daModels.User{}).Where("name LIKE ?", "%"+keyword+"%").Order("CreatedAt desc").Offset(from).Limit(size).Find(&users)
+	res = db.Model(&daModels.User{}).Where("name LIKE ?", "%"+keyword+"%").Order("created_at desc").Offset(from).Limit(size).Find(&users)
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessage(res.Error.Error())
 	}
@@ -102,16 +102,25 @@ func (UserDal) Count() (int64, *SErr.APIErr) {
 func (UserDal) Update(targetID int, updateReq *internal_models.UsersUpdateRequest) *SErr.APIErr {
 	db := mysql.GetDB()
 	updates := map[string]interface{}{
-		"name":  updateReq.Name,
-		"pwd":   updateReq.Pwd,
-		"admin": updateReq.Admin,
+		"name":  nil,
+		"pwd":   nil,
+		"admin": nil,
+	}
+	if updateReq.Name != nil {
+		updates["name"] = *updateReq.Name
+	}
+	if updateReq.Pwd != nil {
+		updates["pwd"] = *updateReq.Pwd
+	}
+	if updateReq.Admin != nil {
+		updates["admin"] = *updateReq.Admin
 	}
 	omits := make([]string, 0, len(updates))
-	//for k, v := range updates {
-	//	if v == nil {
-	//		omits = append(omits, k)
-	//	}
-	//}
+	for k, v := range updates {
+		if v == nil {
+			omits = append(omits, k)
+		}
+	}
 	res := db.Model(&daModels.User{}).Where("id = ?", targetID).Omit(omits...).Updates(updates)
 	if res.Error != nil {
 		return SErr.InternalErr.CustomMessage(res.Error.Error())

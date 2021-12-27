@@ -7,6 +7,7 @@ import (
 	"ServerServing/internal/service"
 	"ServerServing/util"
 	"github.com/gin-gonic/gin"
+	"log"
 )
 
 type UsersHandler struct{}
@@ -29,11 +30,13 @@ func (h UsersHandler) Create(c *gin.Context) (interface{}, *SErr.APIErr) {
 		return nil, SErr.BadRequestErr
 	}
 	s := service.GetUsersService()
-	_, sErr := s.Create(c, req.Name, req.Pwd)
+	token, sErr := s.Create(c, req.Name, req.Pwd)
 	if sErr != nil {
 		return nil, sErr
 	}
-	return &models.UsersCreateResponse{}, nil
+	return &models.UsersCreateResponse{
+		Token: token,
+	}, nil
 }
 
 // Info
@@ -42,6 +45,7 @@ func (h UsersHandler) Create(c *gin.Context) (interface{}, *SErr.APIErr) {
 // @Produce json
 // @Router /api/v1/users/{id} [get]
 // @param id path int true "id"
+// @Param x-token header string false "x-token"
 // @Success 200 {object} internal_models.UsersInfoResponse
 func (h UsersHandler) Info(c *gin.Context) (interface{}, *SErr.APIErr) {
 	userIDStr := c.Param("id")
@@ -49,9 +53,15 @@ func (h UsersHandler) Info(c *gin.Context) (interface{}, *SErr.APIErr) {
 	if err != nil {
 		return nil, SErr.BadRequestErr
 	}
-	if userID <= 0 {
+	sessionSvc := service.GetSessionsService()
+	loggedUserID, loggedErr := sessionSvc.GetUserID(c)
+	if userID <= 0 && loggedErr != nil {
 		return nil, SErr.BadRequestErr.CustomMessageF("待查询的用户ID <= 0，目标用户ID为%d", userID)
 	}
+	if userID <= 0 {
+		userID = loggedUserID
+	}
+	log.Printf("UsersHandler querying user info for id=[%d]", userID)
 	user, sErr := service.GetUsersService().Info(c, userID)
 	if sErr != nil {
 		return nil, sErr
@@ -91,6 +101,7 @@ func (h UsersHandler) Infos(c *gin.Context) (interface{}, *SErr.APIErr) {
 // @Router /api/v1/users/{id} [put]
 // @param id path uint true "id"
 // @Param updateRequest body internal_models.UsersUpdateRequest true "updateRequest"
+// @Param x-token header string true "x-token"
 // @Success 200 {object} internal_models.UsersUpdateResponse
 func (h UsersHandler) Update(c *gin.Context) (interface{}, *SErr.APIErr) {
 	targetIDStr := c.Param("id")
@@ -116,8 +127,8 @@ func (h UsersHandler) Update(c *gin.Context) (interface{}, *SErr.APIErr) {
 func (h UsersHandler) packUser(user *daModels.User) *models.User {
 	return &models.User{
 		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
+		CreatedAt: user.CreatedAt.Unix(),
+		UpdatedAt: user.UpdatedAt.Unix(),
 		Name:      user.Name,
 		Pwd:       user.Pwd,
 		Admin:     user.Admin,

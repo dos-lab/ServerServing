@@ -242,6 +242,8 @@ func NewLinuxSSHExecutorServiceTemplate(osType LinuxOSType, Account string, Pwd 
 	common := path.Join(csp, "linux_common")
 	centos := path.Join(csp, "centos")
 	return &LinuxSSHExecutorServiceTemplate{
+		Host:       SSHConn.Host,
+		Port:       SSHConn.Port,
 		Account:    Account,
 		Pwd:        Pwd,
 		OSType:     osType,
@@ -475,7 +477,9 @@ func (s *LinuxSSHExecutorServiceTemplate) GetCPUMemProcessesUsages() (*ExecutorS
 			return
 		}
 		usage := 100 * float64(used) / float64(free+used+buff)
+		total := float64(free + used + buff)
 		resp.CPUMemUsage.MemUsage = &usage
+		resp.CPUMemUsage.MemTotal = strconv.Itoa(int(total/1024.)) + "MB"
 	}
 	matchProcLine := func(line string) {
 		line = strings.TrimSpace(line)
@@ -1227,6 +1231,7 @@ func (conn *LinuxSSHConnection) SendCommands(cmds ...string) (string, *SErr.APIE
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 	go func(in io.WriteCloser, out io.Reader, output *[]byte) {
+		defer wg.Done()
 		var (
 			line string
 			r    = bufio.NewReader(out)
@@ -1253,15 +1258,13 @@ func (conn *LinuxSSHConnection) SendCommands(cmds ...string) (string, *SErr.APIE
 				}
 			}
 		}
-		wg.Done()
 	}(in, out, &output)
-
 	cmd := strings.Join(cmds, "; ")
-	_, err = session.CombinedOutput(cmd)
+	// bs, err := session.CombinedOutput(cmd)
+	err = session.Run(cmd)
 	if err != nil {
-		return string(output), SErr.SSHConnectionErr.CustomMessageF("发送请求后，返回失败信息！失败信息为：%s", err.Error())
+		return string(output), SErr.SSHConnectionErr.CustomMessageF("发送请求后，返回失败信息！失败信息为：%s，服务器输出为：%s", err.Error(), string(output))
 	}
-
 	wg.Wait()
 	// remove sudo line
 	outStr := string(output)

@@ -25,7 +25,6 @@
                 <el-button size="mini" type="text" @click="deleteServerPopupVisible = false">取消</el-button>
                 <el-button type="primary" :loading="serverDeleting" size="mini" @click="handleDeleteServerButton">确定</el-button>
               </div>
-              <span> 进程信息 </span>
               <el-button slot="reference" type="danger" style="margin-left: 10px">
                 删除服务器
               </el-button>
@@ -69,7 +68,8 @@
                   :data="hardwareTableData"
                   fit
                   highlight-current-row
-                  style="width: 100%; height: 100%;"
+                  max-height="500"
+                  style="width: 100%;"
                 >
                   <el-table-column label="硬件名" align="center" width="180">
                     <template slot-scope="{row}">
@@ -111,7 +111,8 @@
                   :data="hardwareUsageTableData"
                   fit
                   highlight-current-row
-                  style="width: 100%; height: 100%;"
+                  max-height="500"
+                  style="width: 100%;"
                 >
                   <el-table-column label="硬件名" align="center" width="180">
                     <template slot-scope="{row}">
@@ -133,7 +134,7 @@
 
       <el-row :gutter="8" style="margin-top: 20px">
         <el-col :span="12">
-          <el-container style="max-height: 500px">
+          <el-container>
             <el-header style="height: 50px;">
               <div class="el-header" style="font-size: 24px; display: flex; align-items: center; justify-content: start">
                 <el-popover
@@ -144,7 +145,7 @@
                 >
                   <span slot="reference"> 账户信息 </span>
                 </el-popover>
-                <el-button style="margin-left: 20px" type="primary" @click="createAccountFormVisible = true">
+                <el-button style="margin-left: 20px" type="primary" @click="handleCreateAccountButton">
                   创建账户
                 </el-button>
               </div>
@@ -156,18 +157,33 @@
                 :data="server.account_infos ? server.account_infos.accounts : null"
                 fit
                 highlight-current-row
-                style="width: 100%; height: 100%;"
+                max-height="500"
+                style="width: 100%;"
               >
                 <el-table-column label="序号" type="index" align="center">
                 </el-table-column>
                 <el-table-column label="账户" min-width="100px" align="center">
                   <template slot-scope="{row}">
-                    <span>{{ row.name }}</span>
+                    <span v-if="row.not_exists_in_server">
+                      <el-tooltip class="item" effect="dark" content="该账户不存在于服务器，可进行恢复" placement="top">
+                        <div style="color: red">
+                          {{ row.name }}
+                        </div>
+                      </el-tooltip>
+                    </span>
+                    <span v-else>{{ row.name }}</span>
                   </template>
                 </el-table-column>
                 <el-table-column label="密码" min-width="150px">
+                  <template slot="header">
+                    <el-tooltip class="item" effect="dark" content="密码无法直接从服务器获取，该列仅能展示在ServerServing创建的账户密码" placement="top">
+                      <span>
+                        密码
+                      </span>
+                    </el-tooltip>
+                  </template>
                   <template slot-scope="{row}">
-                    <span>{{ row.pwd.length > 0 ? row.pwd : '未知' }}</span>
+                    <span>{{ row.pwd && row.pwd.length > 0 ? row.pwd : '未知' }}</span>
                   </template>
                 </el-table-column>
                 <el-table-column label="操作" min-width="150px">
@@ -187,65 +203,64 @@
           </el-container>
         </el-col>
         <el-col :span="12">
-          <div v-if="extractProcessInfos() !== null">
-            <el-container style="max-height: 500px">
-              <el-header style="height: 50px;">
-                <div class="el-header" style="font-size: 24px;">
-                  <el-popover
-                    placement="top-start"
-                    title="原始输出"
-                    trigger="hover"
-                    :content="server.cpu_mem_processes_usage_info ? server.cpu_mem_processes_usage_info.output : '未知'"
-                  >
-                    <span slot="reference"> 进程信息 </span>
-                  </el-popover>
-                </div>
-              </el-header>
-              <el-main style="padding-top: 0">
-                <el-table
-                  :key="processTableKey"
-                  :data="server.cpu_mem_processes_usage_info ? server.cpu_mem_processes_usage_info.process_infos : null"
-                  fit
-                  highlight-current-row
-                  style="width: 100%; height: 100%;"
+          <el-container>
+            <el-header style="height: 50px;">
+              <div class="el-header" style="font-size: 24px;">
+                <el-popover
+                  placement="top-start"
+                  title="原始输出"
+                  trigger="hover"
+                  :content="server.cpu_mem_processes_usage_info ? server.cpu_mem_processes_usage_info.output : '未知'"
                 >
-                  <el-table-column label="pid" align="center">
-                    <template slot-scope="{row}">
-                      <span>{{ row.pid }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="账户">
-                    <template slot-scope="{row}">
-                      <span>{{ row.owner_account_name }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="CPU(%)">
-                    <template slot-scope="{row}">
-                      <span>{{ row.cpu_usage.toFixed(2) }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="MEM(%)">
-                    <template slot-scope="{row}">
-                      <span>{{ row.mem_usage.toFixed(2) }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="命令">
-                    <template slot-scope="{row}">
-                      <span>{{ row.command }}</span>
-                    </template>
-                  </el-table-column>
+                  <span slot="reference"> 进程信息 </span>
+                </el-popover>
+              </div>
+            </el-header>
+            <el-main style="padding-top: 0">
+              <el-table
+                :key="processTableKey"
+                :data="server.cpu_mem_processes_usage_info ? server.cpu_mem_processes_usage_info.process_infos : null"
+                fit
+                highlight-current-row
+                max-height="500"
+                style="width: 100%;"
+              >
+                <el-table-column label="pid" align="center">
+                  <template slot-scope="{row}">
+                    <span>{{ row.pid }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="账户">
+                  <template slot-scope="{row}">
+                    <span>{{ row.owner_account_name }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="CPU(%)">
+                  <template slot-scope="{row}">
+                    <span>{{ row.cpu_usage.toFixed(2) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="MEM(%)">
+                  <template slot-scope="{row}">
+                    <span>{{ row.mem_usage.toFixed(2) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="命令">
+                  <template slot-scope="{row}">
+                    <span>{{ row.command }}</span>
+                  </template>
+                </el-table-column>
 
-                </el-table>
-              </el-main>
+              </el-table>
+            </el-main>
 
-            </el-container>
-          </div>
+          </el-container>
         </el-col>
       </el-row>
 
       <el-row :gutter="8" style="margin-top: 20px">
         <el-col :span="12">
-          <el-container style="max-height: 500px">
+          <el-container>
             <el-header style="height: 50px;">
               <div class="el-header" style="font-size: 24px;">
                 <el-popover
@@ -264,7 +279,8 @@
                 :data="server.remote_accessing_usage_info ? server.remote_accessing_usage_info.infos : null"
                 fit
                 highlight-current-row
-                style="width: 100%; height: 100%;"
+                max-height="500"
+                style="width: 100%;"
               >
                 <el-table-column label="账户" width="300" align="center">
                   <template slot-scope="{row}">
@@ -281,14 +297,16 @@
           </el-container>
         </el-col>
         <el-col :span="12">
-          <el-container style="max-height: 500px">
+          <el-container>
             <el-header style="height: 50px;">
               <div class="el-header" style="font-size: 24px;">
                 GPU使用信息
               </div>
             </el-header>
             <el-main style="padding-top: 0">
-              {{ server.server_gpu_usage_info ? server.server_gpu_usage_info.output : '未知' }}
+              <p>
+                {{ server.server_gpu_usage_info ? server.server_gpu_usage_info.output : '未知' }}
+              </p>
             </el-main>
           </el-container>
         </el-col>
@@ -325,7 +343,7 @@
         </el-form-item>
         <el-form-item>
           <el-switch
-            v-model="recoverAccountModel.doBackup"
+            v-model="recoverAccountModel.do_backup"
             :disabled="!isAble2recoverAccountWithBackup.able"
             active-text="恢复备份用户文件夹"/>
           <div v-if="isAble2recoverAccountWithBackup.able">
@@ -337,14 +355,14 @@
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
-        <el-button type="primary" :loading="deleteAccountConfirmLoading" @click="handleRecoverAccount">
+        <el-button type="primary" :loading="recoverAccountConfirmLoading" @click="handleRecoverAccount">
           恢复
         </el-button>
       </div>
     </el-dialog>
 
     <el-dialog title="创建账户" :visible.sync="createAccountFormVisible">
-      <el-form ref="dataForm" label-position="top" :rules="createAccountRules" :model="createAccountModel" style="width: 80%; margin-left:50px;">
+      <el-form ref="createAccountForm" label-position="top" :rules="createAccountRules" :model="createAccountModel">
         <el-form-item label="账户名称" prop="account_name">
           <el-input v-model="createAccountModel.account_name" />
         </el-form-item>
@@ -372,7 +390,7 @@
 <script>
 
 // import Mock from 'mockjs'
-import { getInfo, deleteServer, createAccount } from '@/api/server'
+import { getInfo, deleteServer, createAccount, deleteAccount, recoverAccount } from '@/api/server'
 import JsonEditor from '@/components/JsonEditor'
 
 const autoRefreshLabels2Attr = {
@@ -397,7 +415,7 @@ export default {
     }
   },
   data() {
-    const nameReg = /^[a-zA-Z][0-9A-Za-z_]{2,14}/
+    const nameReg = /^[a-zA-Z][0-9A-Za-z_]{2,14}$/
     const validateName = (rule, value, callback) => {
       if (!nameReg.test(value)) {
         callback(new Error('账户名仅支持字母开头的数字，字母，以及下划线的组合，并且大于等于3位，不可超过15位！'))
@@ -405,10 +423,10 @@ export default {
         callback()
       }
     }
-    const pwdReg = /(?!^(\d*|[a-zA-Z]*|[~!@#$%^&*?]*)$)^[\w~!@#$%^&*?]{6,15}$/
+    const pwdReg = /^[a-zA-Z][0-9a-zA-Z~!@#$%^&*?]{5,14}$/
     const validateNewPwd = (rule, value, callback) => {
       if (!pwdReg.test(value)) {
-        callback(new Error('密码应是6-15位数字、字母的混合！'))
+        callback(new Error('密码应是6-15位字母开头的，数字、字母、特殊符号的混合！'))
       } else {
         callback()
       }
@@ -502,7 +520,7 @@ export default {
       recoverAccountModel: {
         account_name: '',
         account_pwd: '',
-        doBackup: false
+        do_backup: false
       }
     }
   },
@@ -518,13 +536,15 @@ export default {
         entry: 'CPU',
         description: `架构：${cpu_info.architecture} <br> 类型：${cpu_info.model_name} <br> 核心数：${cpu_info.cores} <br> 每核心线程：${cpu_info.threads_per_core}`
       })
-      const gpu_info = this.server.hardware_info.gpu_hardware_info
+      const gpu_info = this.server.hardware_info.gpu_hardware_infos
       const gpus = []
-      for (const gpu of gpu_info.infos) {
-        gpus.push(`${gpu.product}`)
+      if (gpu_info.infos) {
+        for (const gpu of gpu_info.infos) {
+          gpus.push(`${gpu.product}`)
+        }
       }
       data.push({
-        output: this.server.hardware_info.gpu_hardware_info.output,
+        output: this.server.hardware_info.gpu_hardware_infos.output,
         entry: 'GPU',
         description: gpus.length > 0 ? `型号：[${gpus.join(', ')}]` : '未知'
       })
@@ -755,22 +775,40 @@ export default {
         this.serverDeleting = false
       })
     },
-    handleCreateAccountConfirm() {
-      this.createAccountConfirmLoading = true
-      const recoverAutoRefresh = this.pauseAutoRefresh()
-      return createAccount(this.host, this.port, this.createAccountModel.account_name, this.createAccountModel.account_pwd).then((res) => {
-        console.log('create account, res', res)
-        this.$message.success('创建账户成功！')
-        this.refreshAccounts().finally(() => {
-          recoverAutoRefresh()
-        })
-      }).catch((err) => {
-        console.log('create account err', err)
-        recoverAutoRefresh()
-      }).finally(() => {
-        this.createAccountConfirmLoading = false
-        this.createAccountFormVisible = false
+    withRecoverAutoRefresh(func) {
+      const wasAutoRefreshing = this.pauseAutoRefresh()
+      return func().finally(() => {
+        this.recoverAutoRefresh(wasAutoRefreshing)
       })
+    },
+    handleCreateAccountConfirm() {
+      this.$refs['createAccountForm'].validate((valid) => {
+        if (!valid) {
+          console.log('handleCreateAccountConfirm not valid')
+          return null
+        }
+        this.createAccountConfirmLoading = true
+        const _this = this
+        return _this.withRecoverAutoRefresh(function() {
+          return createAccount(_this.host, _this.port, _this.createAccountModel.account_name, _this.createAccountModel.account_pwd).then((res) => {
+            console.log('create account, res', res)
+            _this.$message.success('创建账户成功！')
+            return _this.refreshAccounts()
+          }).catch((err) => {
+            console.log('create account err', err)
+          }).finally(() => {
+            _this.createAccountConfirmLoading = false
+            _this.createAccountFormVisible = false
+          })
+        })
+      })
+    },
+    handleCreateAccountButton() {
+      this.createAccountFormVisible = true
+      this.createAccountModel = {
+        account_name: '',
+        account_pwd: ''
+      }
     },
     refreshAccounts() {
       this.accountTableLoading = true
@@ -786,9 +824,12 @@ export default {
       const wasAutoRefreshing = this.autoRefreshing
       this.autoRefreshing = false
       this.handleAutoRefreshEnableChanged(false)
-      return function() {
-        this.autoRefreshing = wasAutoRefreshing
-        this.handleAutoRefreshEnableChanged(wasAutoRefreshing)
+      return wasAutoRefreshing
+    },
+    recoverAutoRefresh(wasAutoRefreshing) {
+      if (wasAutoRefreshing) {
+        this.autoRefreshing = true
+        this.handleAutoRefreshEnableChanged(true)
       }
     },
     handleDeleteAccountDialogButton(account_name) {
@@ -802,9 +843,42 @@ export default {
     },
     handleDeleteAccount() {
       console.log('handleDeleteAccountButton deleteAccountModel', this.deleteAccountModel)
+      this.deleteAccountConfirmLoading = true
+      const _this = this
+      return _this.withRecoverAutoRefresh(function() {
+        return deleteAccount(_this.host, _this.port, _this.deleteAccountModel.account_name, _this.deleteAccountModel.doBackup).then(() => {
+          _this.$message.success('删除账户成功！')
+          return _this.refreshAccounts()
+        }).catch(err => {
+          console.log('删除账户失败', err)
+        }).finally(() => {
+          console.log('handleDeleteAccount finally')
+          _this.deleteAccountConfirmLoading = false
+          _this.deleteAccountDialogVisible = false
+        })
+      })
     },
     handleRecoverAccount() {
       console.log('handleRecoverAccountButton recoverAccountModel', this.recoverAccountModel)
+      this.$refs['recoverAccountForm'].validate((valid) => {
+        if (!valid) {
+          console.log('handleRecoverAccount model not valid')
+          return null
+        }
+        this.recoverAccountConfirmLoading = true
+        const _this = this
+        return _this.withRecoverAutoRefresh(function() {
+          return recoverAccount(_this.host, _this.port, _this.recoverAccountModel.account_name, _this.recoverAccountModel.account_pwd, _this.recoverAccountModel.do_backup).then(() => {
+            _this.$message.success('恢复账户成功！')
+            return _this.refreshAccounts()
+          }).catch(err => {
+            console.log('恢复账户失败', err)
+          }).finally(() => {
+            _this.recoverAccountConfirmLoading = false
+            _this.recoverAccountDialogVisible = false
+          })
+        })
+      })
     }
     // handleServerUpdateButton() {
     //   this.serverUpdateModel = {

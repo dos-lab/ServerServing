@@ -39,6 +39,7 @@ func Register(r *gin.Engine) {
 	serversRouter.DELETE("", format.Wrap(serversAPI.delete()))
 	serversRouter.GET(":host/:port", format.Wrap(serversAPI.info()))
 	serversRouter.GET("", format.Wrap(serversAPI.infos()))
+	serversRouter.GET("connections/:host/:port", format.Wrap(serversAPI.connectionTest()))
 
 	serversAccountsAPI := serversAccountsAPI{}
 	serversAccountsRouter.POST("", format.Wrap(serversAccountsAPI.create()))
@@ -52,7 +53,7 @@ const (
 	prefixUser           = "users"
 	prefixSession        = "sessions"
 	prefixServer         = "servers"
-	prefixServerAccounts = "servers/accounts/"
+	prefixServerAccounts = "servers/accounts"
 )
 
 //type sourceCodeAPI struct{}
@@ -141,6 +142,12 @@ func (serversAPI) infos() format.JSONHandler {
 	}
 }
 
+func (serversAPI) connectionTest() format.JSONHandler {
+	return func(c *gin.Context) (interface{}, *err.APIErr) {
+		return handler.GetServerHandler().ConnectionTest(c)
+	}
+}
+
 type serversAccountsAPI struct{}
 
 func (serversAccountsAPI) create() format.JSONHandler {
@@ -191,7 +198,7 @@ func (testAPI) ping() format.JSONHandler {
 // @Fail err.APIErr
 func (testAPI) testErrorHandler() format.JSONHandler {
 	return func(c *gin.Context) (interface{}, *err.APIErr) {
-		_ = c.AbortWithError(err.BadRequestErr.Status, err.BadRequestErr)
+		_ = c.AbortWithError(err.BadRequestErr.Code, err.BadRequestErr)
 		return nil, nil
 	}
 }

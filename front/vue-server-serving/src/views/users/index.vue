@@ -2,7 +2,7 @@
   <div class="app-container">
     <div class="filter-container">
       <el-input v-model="listQuery.searchKeyword" placeholder="关键词" style="width: 200px;" class="filter-item" @keyup.enter.native="handleFilter" />
-      <el-button v-waves class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">
+      <el-button style="margin-left: 20px" v-waves class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">
         搜索
       </el-button>
     </div>
@@ -15,9 +15,8 @@
       fit
       highlight-current-row
       style="width: 100%;"
-      @sort-change="sortChange"
     >
-      <el-table-column label="ID" prop="id" sortable="custom" align="center" width="80" :class-name="getSortClass('id')">
+      <el-table-column label="ID" prop="id" align="center" width="80">
         <template slot-scope="{row}">
           <span>{{ row.id }}</span>
         </template>
@@ -42,13 +41,13 @@
       <el-table-column label="Actions" align="center" width="230" class-name="small-padding fixed-width">
         <!--        <template slot-scope="{row,$index}">-->
         <template slot-scope="{row}">
-          <el-button type="primary" size="mini" @click="handleUpdate(row)">
+          <el-button type="primary" size="mini" :disabled="!checkPermission(['admin']) && row.name !== $store.getters.name" @click="handleUpdate(row)">
             编辑信息
           </el-button>
-          <el-button v-if="row.admin" size="mini" @click="handleUpdateAdmin(row,false)">
+          <el-button v-if="row.admin" :loading="updateAdminButtonLoading" :disabled="!checkPermission(['admin'])" size="mini" @click="handleUpdateAdmin(row,false)">
             取消管理员
           </el-button>
-          <el-button v-if="!row.admin" size="mini" type="success" @click="handleUpdateAdmin(row, true)">
+          <el-button v-if="!row.admin" :loading="updateAdminButtonLoading" :disabled="!checkPermission(['admin'])" size="mini" type="success" @click="handleUpdateAdmin(row, true)">
             设置管理员
           </el-button>
         </template>
@@ -60,11 +59,11 @@
     <el-dialog :title="textMap[dialogStatus]" :visible.sync="dialogFormVisible">
       <el-form ref="dataForm" :rules="rules" :model="temp" label-position="left" label-width="90px" style="width: 400px; margin-left:50px;">
         <el-form-item label="用户名" prop="name">
-          <el-input v-model="temp.name" />
+          <el-input v-model="temp.name" disabled />
         </el-form-item>
         <el-form-item label="管理员" prop="admin">
-          <el-radio v-model="temp.admin" :label=true>是</el-radio>
-          <el-radio v-model="temp.admin" :label=false>否</el-radio>
+          <el-radio v-model="temp.admin" :disabled="!checkPermission(['admin'])" :label="true">是</el-radio>
+          <el-radio v-model="temp.admin" :disabled="!checkPermission(['admin'])" :label="false">否</el-radio>
         </el-form-item>
         <el-form-item label="密码" prop="pwd">
           <el-input v-model="temp.pwd" placeholder="输入密码" show-password />
@@ -96,6 +95,7 @@
 import { getList, getInfo, update } from '@/api/user_mgr'
 import waves from '@/directive/waves' // waves directive
 import Pagination from '@/components/Pagination' // secondary package based on el-pagination
+import checkPermission from '@/utils/permission'
 
 export default {
   name: 'Users',
@@ -167,13 +167,15 @@ export default {
           { required: true, message: '管理员选项必须选择', trigger: 'change' }
         ]
       },
-      downloadLoading: false
+      downloadLoading: false,
+      updateAdminButtonLoading: false
     }
   },
   created() {
     this.getUsers()
   },
   methods: {
+    checkPermission,
     updateUser(userID, data) {
       this.listLoading = true
       return update(userID, data).then(res => {
@@ -187,11 +189,8 @@ export default {
             break
           }
         }
+      }).finally(() => {
         this.listLoading = false
-        console.log('update result', res)
-        setTimeout(() => {
-          this.listLoading = false
-        }, 500)
       })
     },
     getUsers() {
@@ -202,15 +201,12 @@ export default {
       return getList({
         from: from,
         size: size,
-        searchKeyword: this.listQuery.searchKeyword
+        search_keyword: this.listQuery.searchKeyword
       }).then(response => {
         this.list = response.data.infos
         this.total = response.data.total_count
       }).finally(() => {
-        // Just to simulate the time of the request
-        setTimeout(() => {
-          this.listLoading = false
-        }, 500)
+        this.listLoading = false
       })
     },
     getUserInfo(userID) {
@@ -222,7 +218,8 @@ export default {
       this.getUsers()
     },
     handleUpdateAdmin(row, switch2IsAdmin) {
-      this.updateUser(row.id, {
+      this.updateAdminButtonLoading = true
+      return this.updateUser(row.id, {
         admin: switch2IsAdmin
       }).then(res => {
         console.log('handleUpdateAdmin update success, res', res)
@@ -232,6 +229,11 @@ export default {
         })
       }).catch(err => {
         console.log('更新管理员失败, err', err)
+      }).finally(() => {
+        if (row.name === this.$store.getters.name && switch2IsAdmin === false) {
+          this.$store.dispatch('user/changeRoles', ['editor'])
+        }
+        this.updateAdminButtonLoading = false
       })
     },
     sortChange(data) {
@@ -249,6 +251,9 @@ export default {
       this.handleFilter()
     },
     handleUpdate(row) {
+      if (!checkPermission(['admin']) && row.name !== this.$store.getters.name) {
+        return
+      }
       this.temp = Object.assign({}, row) // copy obj
       this.dialogStatus = 'update'
       this.dialogFormVisible = true

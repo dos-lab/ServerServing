@@ -43,10 +43,10 @@
                         管理员账户: {{ server.basic.admin_account_name }}
                       </div>
                       <div style="min-width: 250px;">
-                        CPU(%): {{ extractCPUMemUsage(server, 'user_cpu_usage').toFixed(2) || '未知' }}
+                        CPU(%): {{ extractCPUMemUsage(server, 'user_cpu_usage') }}
                       </div>
                       <div style="min-width: 200px;">
-                        Memory(%): {{ `${extractCPUMemUsage(server, 'mem_usage').toFixed(2)} (${extractCPUMemUsage(server, 'mem_total')})` || '未知' }}
+                        Memory(%): {{ `${extractCPUMemUsage(server, 'mem_usage')} (${extractCPUMemUsage(server, 'mem_total')})` || '未知' }}
                       </div>
                     </span>
                     <div style="margin-left: 20px">
@@ -200,18 +200,15 @@ export default {
       const size = +this.listQuery.limit
       copied.from = from
       copied.size = size
-      copied.searchKeyword = this.listQuery.searchKeyword
+      copied.keyword = this.listQuery.searchKeyword
       console.log('getServers, param', copied)
-      copied.searchKeyword = this.listQuery.searchKeyword
       getList(copied).then(res => {
         console.log('initServers res', res)
         this.list = res.data.infos
         this.total = res.data.total_count
       }).finally(() => {
         // Just to simulate the time of the request
-        setTimeout(() => {
-          this.listLoading = false
-        }, 500)
+        this.listLoading = false
       })
     },
     handleFilter() {
@@ -224,9 +221,13 @@ export default {
     extractCPUMemUsage(server, field) {
       if (server.cpu_mem_processes_usage_info && server.cpu_mem_processes_usage_info.failed_info === null) {
         const cpu_mem_usage = server.cpu_mem_processes_usage_info.cpu_mem_usage
-        return cpu_mem_usage[field]
+        const value = cpu_mem_usage[field]
+        if (value instanceof Number) {
+          return value.toFixed(2)
+        }
+        return value
       }
-      return null
+      return '未知'
     },
     handleCollapseChange(val) {
       console.log('servers collapse change, val', val)
@@ -265,16 +266,16 @@ export default {
         }
         const os_type = osTypesLabel2Value[this.registerServerModel.os_type_label] || 'os_type_linux'
         this.registerServerConnectionTestLoading = true
-        return connectionTest(this.registerServerModel.host, this.registerServerModel.port, {
-          os_type: os_type,
-          admin_account_name: this.registerServerModel.admin_account_name,
-          admin_account_pwd: this.registerServerModel.admin_account_pwd
-        }).then((res) => {
+        return connectionTest(this.registerServerModel.host,
+          this.registerServerModel.port,
+          os_type,
+          this.registerServerModel.admin_account_name,
+          this.registerServerModel.admin_account_pwd).then((res) => {
           console.log('handleRegisterServerConnectionTest response', res)
           if (res.data.connected === true) {
             this.$message.success('连接成功！')
           } else {
-            this.$message.error('连接失败！')
+            this.$message.error(`连接失败！原因：${res.data.cause}`)
           }
         }).finally(() => {
           this.registerServerConnectionTestLoading = false
@@ -297,8 +298,11 @@ export default {
           this.registerServerModel.admin_account_pwd).then(() => {
           _this.$message.success('注册成功！')
           this.registerServerFormVisible = false
+        }).catch(err => {
+          console.log('handleRegisterServerConfirm createServer err', err)
         }).finally(() => {
           this.registerServerConfirmLoading = false
+          return this.getServers(this.defaultGetServerParams)
         })
       })
     },

@@ -6,6 +6,7 @@ type SessionsCreateRequest struct {
 }
 
 type SessionsCreateResponse struct {
+	Token string `json:"token"`
 }
 
 type SessionsDestroyRequest struct {

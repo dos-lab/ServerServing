@@ -1,16 +1,16 @@
 package format
 
-import "net/http"
+import "ServerServing/err"
 
 type JSONRespFormat struct {
-	Status  int         `json:"status"`
+	Code    int         `json:"code"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data"`
 }
 
 func SimpleOKResp(data interface{}) *JSONRespFormat {
 	return &JSONRespFormat{
-		Status:  http.StatusOK,
+		Code:    err.CodeOK,
 		Message: "success",
 		Data:    data,
 	}
@@ -18,7 +18,7 @@ func SimpleOKResp(data interface{}) *JSONRespFormat {
 
 func NewJSONResp(statusCode int, msg string, data interface{}) *JSONRespFormat {
 	return &JSONRespFormat{
-		Status:  statusCode,
+		Code:    statusCode,
 		Message: msg,
 		Data:    data,
 	}

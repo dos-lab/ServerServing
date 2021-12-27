@@ -26,11 +26,13 @@ func (SessionsHandler) Create(c *gin.Context) (interface{}, *SErr.APIErr) {
 	if err != nil {
 		return nil, SErr.BadRequestErr
 	}
-	sErr := service.GetSessionsService().Create(c, req.Name, req.Pwd)
+	token, sErr := service.GetSessionsService().Create(c, req.Name, req.Pwd)
 	if sErr != nil {
 		return nil, sErr
 	}
-	return &models.SessionsCreateResponse{}, nil
+	return &models.SessionsCreateResponse{
+		Token: token,
+	}, nil
 }
 
 // Destroy

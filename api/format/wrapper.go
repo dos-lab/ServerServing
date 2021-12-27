@@ -42,5 +42,5 @@ func wrapNormalHandler(handler NormalHandler) func(c *gin.Context) {
 }
 
 func Err(c *gin.Context, e *SErr.APIErr) {
-	c.JSON(e.Status, NewJSONResp(e.Status, e.Message, nil))
+	c.JSON(http.StatusOK, NewJSONResp(e.Code, e.Message, nil))
 }

@@ -43,8 +43,8 @@ type ServerInfosRequest struct {
 }
 
 type ServerInfosResponse struct {
-	Infos []*ServerInfo `json:"infos"`
-	TotalCount  uint `json:"total_count"`
+	Infos      []*ServerInfo `json:"infos"`
+	TotalCount uint          `json:"total_count"`
 }
 
 type LoadServerDetailArg struct {
@@ -52,6 +52,8 @@ type LoadServerDetailArg struct {
 	WithHardwareInfo bool `form:"with_hardware_info" json:"with_hardware_info"`
 	// WithAccounts 加载账户信息的参数，为nil则不加载
 	WithAccounts bool `form:"with_accounts" json:"with_accounts"`
+	// WithAccountsIgnoreDBAccounts 指定是否无视数据库内的账户信息
+	WithAccountsIgnoreDBAccounts bool `json:"-" form:"-"`
 	// WithRemoteAccessUsages 指定是否加载正在远程登录这台服务器的用户信息。
 	WithRemoteAccessUsages bool `form:"with_remote_access_usages" json:"with_remote_access_usages"`
 	// WithGPUUsages 指定是否加载GPU的使用信息。
@@ -129,7 +131,7 @@ type ServerAccountBackupDirInfo struct {
 
 // ServerInfoLoadingFailedInfo 描述一个服务器的某部分内容加载失败的原因，以及当时服务器的原始输出。
 type ServerInfoLoadingFailedInfo struct {
-	CauseDescription string `json:"cause_description"`// 描述具体原因。
+	CauseDescription string `json:"cause_description"` // 描述具体原因。
 }
 
 // ServerInfoCommon 每个Server的信息都要包含的结构。它描述了获取该信息时是否失败，以及对应的服务器原始输出。
@@ -252,6 +254,9 @@ type ServerCPUMemUsage struct {
 
 	// MemUsage 总内存使用（比例：如3600MB/8000MB）
 	MemUsage *float64 `json:"mem_usage"`
+
+	// MemTotal 内存总量，使用字符串固定死
+	MemTotal string `json:"mem_total"`
 }
 
 // ServerProcessInfo 描述一个在Server上的进程信息。
@@ -276,4 +281,15 @@ type ServerProcessInfo struct {
 // GPU的使用率查询比较复杂，直接展示原输出。
 type ServerGPUUsageInfo struct {
 	*ServerInfoCommon
+}
+
+type ServerConnectionTestRequest struct {
+	AccountName string           `form:"account_name" json:"account_name"`
+	AccountPwd  string           `form:"account_pwd" json:"account_pwd"`
+	OSType      da_models.OSType `form:"os_type" json:"os_type"`
+}
+
+type ServerConnectionTestResponse struct {
+	Connected bool   `json:"connected"`
+	Cause     string `json:"cause"`
 }

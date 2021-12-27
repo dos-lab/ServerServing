@@ -22,8 +22,8 @@ type ServerAccountDeleteResponse struct {
 }
 
 type ServerAccountUpdateRequest struct {
-	Recover       bool `form:"recover"`        // Recover 该账户是从删除的账户中恢复
-	RecoverBackup bool `form:"recover_backup"` // RecoverBackup 指定是否要恢复backup的用户目录文件夹。
+	Recover       bool `form:"recover" json:"recover"`               // Recover 该账户是从删除的账户中恢复
+	RecoverBackup bool `form:"recover_backup" json:"recover_backup"` // RecoverBackup 指定是否要恢复backup的用户目录文件夹。
 
 	Host        string `json:"host" form:"host"`
 	Port        uint   `json:"port" form:"port"`

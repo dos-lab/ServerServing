@@ -4,12 +4,22 @@ const List = []
 const count = 100
 
 const newMockAccount = function(host, port) {
+  const nameReg = /[a-zA-Z][_a-zA-Z0-9]{5,14}/
+  const pwdReg = /[\w]{6,12}/
+  const v = Mock.mock({
+    name: nameReg,
+    pwd: pwdReg,
+    pwdExists: '@bool'
+  })
+  if (!v.pwdExists) {
+    v.pwd = null
+  }
   return Mock.mock({
     created_at: +Mock.Random.date('T'),
     updated_at: +Mock.Random.date('T'),
     deleted_at: null,
-    name: '@first',
-    pwd: '@first',
+    name: v.name,
+    pwd: v.pwd,
     host: host,
     port: port,
     uid: '@integer(1000, 1100)',
@@ -18,7 +28,7 @@ const newMockAccount = function(host, port) {
     backup_dir_info: {
       output: 'some output for backup dir info',
       failed_info: null,
-      backup_dir: '/backup/123456.backup',
+      backup_dir: `/backup/${v.name}`,
       path_exists: '@bool',
       dir_exists: '@bool'
     }
@@ -54,7 +64,7 @@ const newMockServer = function() {
           threads_per_core: 1
         }
       },
-      gpu_hardware_info: {
+      gpu_hardware_infos: {
         output: '00:02.0 VGA compatible controller: Cirrus Logic GD 5446\n',
         failed_info: null,
         infos: [
@@ -162,113 +172,7 @@ function filterWithOptions(copied, query) {
 
 module.exports = [
   {
-    url: '/app/v1/servers/connection/([0-9.]+)/([0-9]+)',
-    type: 'get',
-    response: config => {
-      // console.log('get servers, config', config)
-      const host = config.params[0]
-      const port = +config.params[1]
-
-      console.log('connection test servers, mock, host, port, params', host, port, config.query)
-      return {
-        code: 20000,
-        message: 'success',
-        data: {
-          connected: true
-        }
-      }
-    }
-  },
-  {
-    url: '/app/v1/servers/',
-    type: 'delete',
-    response: config => {
-      const { host, port } = config.body
-      console.log('delete server, mock, host, port, body', host, port, config.body)
-      for (let i = 0; i < List.length; i++) {
-        const server = List[i]
-        if (server.basic.host === host && server.basic.port === port) {
-          List.splice(i, 1)
-          return {
-            code: 20000,
-            message: 'success',
-            data: {}
-          }
-        }
-      }
-      return {
-        code: 40004,
-        message: '该服务器不存在！',
-        data: {}
-      }
-    }
-  },
-  {
-    // 单独获取一个server的info
-    url: '/app/v1/servers/([0-9.]+)/([0-9]+)',
-    type: 'get',
-    response: config => {
-      // console.log('get server, config', config)
-      const host = config.params[0]
-      const port = +config.params[1]
-      // const {
-      //   with_accounts,
-      //   with_cmp_usages,
-      //   with_gpu_usages,
-      //   with_hardware_info,
-      //   with_remote_access_usages
-      // } = config.query
-      for (const server of List) {
-        if (server.basic.host === host && server.basic.port === port) {
-          let copied = Object.assign({}, server)
-          copied = filterWithOptions(copied, config.query)
-          return {
-            code: 20000,
-            message: 'success',
-            data: copied
-          }
-        }
-      }
-    }
-  },
-  {
-    url: '/app/v1/servers/',
-    type: 'get',
-    response: config => {
-      // console.log('get servers, config', config)
-      const { from = 0, size = 20, searchKeyword } = config.query
-
-      const numFrom = +from
-      const numSize = +size
-
-      const mockList = List.filter(item => {
-        // console.log('filtering item', item, 'keyword', keyword)
-        return !(searchKeyword && item.basic.host.indexOf(searchKeyword) < 0 && item.basic.admin_account_name.indexOf(searchKeyword) < 0)
-      })
-
-      console.log('get servers, mock, from, size, from + size', numFrom, numSize, numFrom + numSize)
-
-      const pageList = mockList.filter((item, index) => index >= numFrom && index < (numFrom + numSize))
-      const copies = []
-      for (const server of pageList) {
-        let copied = Object.assign({}, server)
-        // console.log('before filter server', copied)
-        copied = filterWithOptions(copied, config.query)
-        // console.log('after filter server', copied)
-        copies.push(copied)
-      }
-      return {
-        code: 20000,
-        message: 'success',
-        data: {
-          total_count: mockList.length,
-          infos: copies
-        }
-      }
-    }
-  },
-  {
-    url: '/app/v1/servers/accounts/',
+    url: '/api/v1/servers/accounts/',
     type: 'post',
     response: config => {
       const { host, port, account_name, account_pwd } = config.body
@@ -305,7 +209,197 @@ module.exports = [
     }
   },
   {
-    url: '/app/v1/servers/',
+    url: '/api/v1/servers/accounts/',
+    type: 'delete',
+    response: config => {
+      const { host, port, account_name, backup } = config.body
+      console.log('delete account, request body, host, port, account_name, backup', host, port, account_name, backup)
+      for (let i = 0; i < List.length; i++) {
+        const server = List[i]
+        if (server.basic.host === host && server.basic.port === port) {
+          console.log('server accounts', server.account_infos.accounts)
+          for (const acc of server.account_infos.accounts) {
+            if (acc.name === account_name) {
+              acc.not_exists_in_server = true
+              if (backup) {
+                acc.backup_dir_info.dir_exists = true
+                acc.backup_dir_info.path_exists = true
+                acc.backup_dir_info.backup_dir = '/backup/' + account_name
+                acc.backup_dir_info.output = 'some output for backup dir info'
+              }
+              return {
+                code: 20000,
+                message: 'success',
+                data: {
+                  backup_dir: acc.backup_dir_info.backup_dir
+                }
+              }
+            }
+          }
+          return {
+            code: 40004,
+            message: '该账户不存在！',
+            data: {
+              backup_dir: null
+            }
+          }
+        }
+      }
+      return {
+        code: 40004,
+        message: '服务器不存在！',
+        data: {}
+      }
+    }
+  },
+  {
+    url: '/api/v1/servers/accounts/',
+    type: 'put',
+    response: config => {
+      const { host, port, account_name, account_pwd, recover, recover_backup } = config.body
+      console.log('update account, request body, host, port, account_name, account_pwd, recover, recover_backup', host, port, account_name, account_pwd, recover, recover_backup)
+      for (let i = 0; i < List.length; i++) {
+        const server = List[i]
+        if (server.basic.host === host && server.basic.port === port) {
+          console.log('server accounts', server.account_infos.accounts)
+          for (const acc of server.account_infos.accounts) {
+            if (acc.name === account_name) {
+              acc.not_exists_in_server = false
+              acc.pwd = account_pwd
+              if (recover_backup) {
+                acc.backup_dir_info.dir_exists = false
+                acc.backup_dir_info.path_exists = false
+              }
+              return {
+                code: 20000,
+                message: 'success',
+                data: {}
+              }
+            }
+          }
+          return {
+            code: 40004,
+            message: '该账户不存在！',
+            data: {}
+          }
+        }
+      }
+      return {
+        code: 40004,
+        message: '服务器不存在！',
+        data: {}
+      }
+    }
+  },
+  {
+    url: '/api/v1/servers/connections/([0-9.]+)/([0-9]+)',
+    type: 'get',
+    response: config => {
+      // console.log('get servers, config', config)
+      const host = config.params[0]
+      const port = +config.params[1]
+
+      console.log('connection test servers, mock, host, port, params', host, port, config.query)
+      return {
+        code: 20000,
+        message: 'success',
+        data: {
+          connected: true,
+          cause: '不知道为啥连不上！'
+        }
+      }
+    }
+  },
+  {
+    url: '/api/v1/servers/',
+    type: 'delete',
+    response: config => {
+      const { host, port } = config.body
+      console.log('delete server, mock, host, port, body', host, port, config.body)
+      for (let i = 0; i < List.length; i++) {
+        const server = List[i]
+        if (server.basic.host === host && server.basic.port === port) {
+          List.splice(i, 1)
+          return {
+            code: 20000,
+            message: 'success',
+            data: {}
+          }
+        }
+      }
+      return {
+        code: 40004,
+        message: '该服务器不存在！',
+        data: {}
+      }
+    }
+  },
+  {
+    // 单独获取一个server的info
+    url: '/api/v1/servers/([0-9.]+)/([0-9]+)',
+    type: 'get',
+    response: config => {
+      // console.log('get server, config', config)
+      const host = config.params[0]
+      const port = +config.params[1]
+      // const {
+      //   with_accounts,
+      //   with_cmp_usages,
+      //   with_gpu_usages,
+      //   with_hardware_info,
+      //   with_remote_access_usages
+      // } = config.query
+      for (const server of List) {
+        if (server.basic.host === host && server.basic.port === port) {
+          let copied = Object.assign({}, server)
+          copied = filterWithOptions(copied, config.query)
+          return {
+            code: 20000,
+            message: 'success',
+            data: copied
+          }
+        }
+      }
+    }
+  },
+  {
+    url: '/api/v1/servers/',
+    type: 'get',
+    response: config => {
+      // console.log('get servers, config', config)
+      const { from = 0, size = 20, keyword } = config.query
+
+      const numFrom = +from
+      const numSize = +size
+
+      const mockList = List.filter(item => {
+        // console.log('filtering item', item, 'keyword', keyword)
+        return !(keyword && item.basic.host.indexOf(keyword) < 0 && item.basic.admin_account_name.indexOf(keyword) < 0)
+      })
+
+      console.log('get servers, mock, from, size, from + size', numFrom, numSize, numFrom + numSize)
+
+      const pageList = mockList.filter((item, index) => index >= numFrom && index < (numFrom + numSize))
+      const copies = []
+      for (const server of pageList) {
+        let copied = Object.assign({}, server)
+        // console.log('before filter server', copied)
+        copied = filterWithOptions(copied, config.query)
+        // console.log('after filter server', copied)
+        copies.push(copied)
+      }
+      return {
+        code: 20000,
+        message: 'success',
+        data: {
+          total_count: mockList.length,
+          infos: copies
+        }
+      }
+    }
+  },
+  {
+    url: '/api/v1/servers/',
     type: 'post',
     response: config => {
       const { host, port, os_type, admin_account_name, admin_account_pwd } = config.body
