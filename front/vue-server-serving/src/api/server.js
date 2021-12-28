@@ -113,6 +113,18 @@ export function recoverAccount(host, port, account_name, account_pwd, recoverBac
   })
 }
 
+export function backupDirInfo(host, port, account_name) {
+  return request({
+    url: `/api/v1/servers/accounts/backupDir`,
+    method: 'get',
+    params: {
+      host: host,
+      port: port,
+      account_name: account_name
+    }
+  })
+}
+
 // export function update(userID, data) {
 //   return request({
 //     url: `/api/v1/servers/${userID}`,

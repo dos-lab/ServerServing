@@ -222,7 +222,8 @@ export default {
       if (server.cpu_mem_processes_usage_info && server.cpu_mem_processes_usage_info.failed_info === null) {
         const cpu_mem_usage = server.cpu_mem_processes_usage_info.cpu_mem_usage
         const value = cpu_mem_usage[field]
-        if (value instanceof Number) {
+        // console.log('extractCPUMemUsage', value, typeof value)
+        if (typeof value === 'number' && !isNaN(value)) {
           return value.toFixed(2)
         }
         return value

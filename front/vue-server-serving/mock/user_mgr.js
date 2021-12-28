@@ -66,7 +66,7 @@ const getUserByID = function(id) {
 module.exports = [
   // user login
   {
-    url: '/api/v1/sessions/',
+    url: '/api/v1/sessions',
     type: 'post',
     response: config => {
       const { name, pwd } = config.body
@@ -89,7 +89,7 @@ module.exports = [
     }
   },
   {
-    url: '/api/v1/sessions/',
+    url: '/api/v1/sessions',
     type: 'delete',
     response: _ => {
       return {
@@ -124,7 +124,7 @@ module.exports = [
     }
   },
   {
-    url: '/api/v1/users/',
+    url: '/api/v1/users',
     type: 'post',
     response: config => {
       const { name, pwd } = config.body
@@ -184,7 +184,7 @@ module.exports = [
     }
   },
   {
-    url: '/api/v1/users/',
+    url: '/api/v1/users',
     type: 'get',
     response: config => {
       const { search_keyword, from = 0, size = 20 } = config.query

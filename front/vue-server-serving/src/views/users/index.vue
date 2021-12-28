@@ -38,7 +38,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="Actions" align="center" width="230" class-name="small-padding fixed-width">
+      <el-table-column label="操作" align="center" width="230" class-name="small-padding fixed-width">
         <!--        <template slot-scope="{row,$index}">-->
         <template slot-scope="{row}">
           <el-button type="primary" size="mini" :disabled="!checkPermission(['admin']) && row.name !== $store.getters.name" @click="handleUpdate(row)">

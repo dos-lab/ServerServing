@@ -35,7 +35,24 @@ const newMockAccount = function(host, port) {
   })
 }
 
+const mockFailedInfo = function(prob) {
+  let failedInfo = null
+  if (Math.floor(Math.random() * 100) < prob) {
+    failedInfo = {
+      cause_description: '模拟的偶发错误'
+    }
+  }
+  return failedInfo
+}
+
 const newMockServer = function() {
+  const access_failed_info = mockFailedInfo(10)
+  const account_failed_info = mockFailedInfo(10)
+  const cpu_hardware_info_failed = mockFailedInfo(10)
+  const gpu_hardware_info_failed = mockFailedInfo(10)
+  const cpu_mem_processes_usage_info_failed = mockFailedInfo(10)
+  const remote_accessing_usage_info_failed = mockFailedInfo(10)
+  const server_gpu_usage_info_failed = mockFailedInfo(10)
   const mockServer = Mock.mock({
     basic: {
       created_at: +Mock.Random.date('T'),
@@ -47,16 +64,16 @@ const newMockServer = function() {
       admin_account_pwd: "@string('lower')",
       os_type: 'os_type_linux'
     },
-    access_failed_info: null,
+    access_failed_info: access_failed_info,
     account_infos: {
       output: 'some server original output for accunt infos',
-      failed_info: null,
+      failed_info: account_failed_info,
       accounts: []
     },
     hardware_info: {
       cpu_hardware_info: {
-        output: 'some server original output for cpu mem processes usage info,some server \\noriginal output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original\\n output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cp\\nu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage \ninfosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original o\\nutput for cpu mem processes usage info\',',
-        failed_info: null,
+        output: 'some server original output for cpu mem processes usage info,some server \noriginal output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original\n output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cp\nu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage \ninfosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original output for cpu mem processes usage infosome server original o\nutput for cpu mem processes usage info\',',
+        failed_info: cpu_hardware_info_failed,
         info: {
           architecture: 'x86_64',
           model_name: 'Intel(R) Xeon(R) CPU E5-2682 v4 @ 2.50GHz',
@@ -66,7 +83,7 @@ const newMockServer = function() {
       },
       gpu_hardware_infos: {
         output: '00:02.0 VGA compatible controller: Cirrus Logic GD 5446\n',
-        failed_info: null,
+        failed_info: gpu_hardware_info_failed,
         infos: [
           {
             product: 'RTX 3090'
@@ -79,7 +96,7 @@ const newMockServer = function() {
     },
     cpu_mem_processes_usage_info: {
       output: 'some server original output for cpu mem processes usage info',
-      failed_info: null,
+      failed_info: cpu_mem_processes_usage_info_failed,
       cpu_mem_usage: {
         user_cpu_usage: '@float(0, 70)',
         mem_usage: '@float(0, 70)',
@@ -118,7 +135,7 @@ const newMockServer = function() {
     },
     remote_accessing_usage_info: {
       output: 'some server original output for remote accessing usage info',
-      failed_info: null,
+      failed_info: remote_accessing_usage_info_failed,
       infos: [
         {
           account_name: 'someuser',
@@ -128,7 +145,7 @@ const newMockServer = function() {
     },
     server_gpu_usage_info: {
       output: 'some server original output for gpu usages',
-      failed_info: null
+      failed_info: server_gpu_usage_info_failed
     }
   })
   const accounts = []
@@ -160,6 +177,26 @@ for (let i = 0; i < count; i++) {
   List.push(mockServer)
 }
 
+const getServer = function(host, port) {
+  for (let i = 0; i < List.length; i++) {
+    const server = List[i]
+    // console.log(`server.basic.host=[${server.basic.host}], server.basic.port=[${server.basic.port}], host=[${host}], port=[${port}]`)
+    if (server.basic.host === host && server.basic.port === port) {
+      return server
+    }
+  }
+  return null
+}
+
+const getAccount = function(server, account_name) {
+  for (const acc of server.account_infos.accounts) {
+    if (acc.name === account_name) {
+      return acc
+    }
+  }
+  return null
+}
+
 function filterWithOptions(copied, query) {
   console.log('filter Option', query)
   copied.account_infos = query.with_accounts === 'true' ? copied.account_infos : null
@@ -172,7 +209,37 @@ function filterWithOptions(copied, query) {
 
 module.exports = [
   {
-    url: '/api/v1/servers/accounts/',
+    url: '/api/v1/servers/accounts/backupDir',
+    type: 'get',
+    response: config => {
+      const { host, port, account_name } = config.query
+      const numberPort = +port
+      console.log('get account backupDir, request param, host, port, account_name', host, numberPort, account_name)
+      const server = getServer(host, numberPort)
+      if (server === null) {
+        return {
+          code: 40004,
+          message: '服务器不存在！',
+          data: {}
+        }
+      }
+      const acc = getAccount(server, account_name)
+      if (acc === null) {
+        return {
+          code: 40004,
+          message: '服务器不存在！',
+          data: {}
+        }
+      }
+      return {
+        code: 20000,
+        message: 'success',
+        data: acc.backup_dir_info
+      }
+    }
+  },
+  {
+    url: '/api/v1/servers/accounts',
     type: 'post',
     response: config => {
       const { host, port, account_name, account_pwd } = config.body
@@ -209,7 +276,7 @@ module.exports = [
     }
   },
   {
-    url: '/api/v1/servers/accounts/',
+    url: '/api/v1/servers/accounts',
     type: 'delete',
     response: config => {
       const { host, port, account_name, backup } = config.body
@@ -253,7 +320,7 @@ module.exports = [
     }
   },
   {
-    url: '/api/v1/servers/accounts/',
+    url: '/api/v1/servers/accounts',
     type: 'put',
     response: config => {
       const { host, port, account_name, account_pwd, recover, recover_backup } = config.body
@@ -311,7 +378,7 @@ module.exports = [
     }
   },
   {
-    url: '/api/v1/servers/',
+    url: '/api/v1/servers',
     type: 'delete',
     response: config => {
       const { host, port } = config.body
@@ -363,7 +430,7 @@ module.exports = [
     }
   },
   {
-    url: '/api/v1/servers/',
+    url: '/api/v1/servers',
     type: 'get',
     response: config => {
       // console.log('get servers, config', config)
@@ -399,7 +466,7 @@ module.exports = [
     }
   },
   {
-    url: '/api/v1/servers/',
+    url: '/api/v1/servers',
     type: 'post',
     response: config => {
       const { host, port, os_type, admin_account_name, admin_account_pwd } = config.body

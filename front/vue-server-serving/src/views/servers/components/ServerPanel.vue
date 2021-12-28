@@ -12,9 +12,6 @@
             <el-button style="margin-left: 10px" type="primary" @click="handleOriginalServerJsonButton">
               查看服务器原始json数据
             </el-button>
-            <!--            <el-button style="margin-left: 10px" type="primary" @click="handleServerUpdateButton">-->
-            <!--              编辑服务器-->
-            <!--            </el-button>-->
             <el-popover
               v-model="deleteServerPopupVisible"
               placement="top"
@@ -35,12 +32,16 @@
       <el-row style="margin-top: 20px" type="flex" justify="start">
         <el-col :span="24">
           <div style="display:flex; align-items: center; justify-content: end">
+            <el-button icon="el-icon-refresh" style="margin-left: 10px" size="small" @click="refresh_server_with_auto_refresh_paused(refreshAllOpts, 'panelLoading')">
+              全部刷新
+            </el-button>
             <el-switch
               v-model="autoRefreshEnabled"
               active-text="自动刷新"
+              style="margin-left: 20px"
               @change="handleAutoRefreshEnableChanged"
             />
-            <el-input-number v-model="autoRefreshInterval" style="margin-left: 20px;" :disabled="!autoRefreshEnabled" size="mini" controls-position="right" :min="5" :max="300" @change="handleAutoRefreshIntervalChange" />
+            <el-input-number v-model="autoRefreshInterval" style="margin-left: 10px;" :disabled="!autoRefreshEnabled" size="mini" controls-position="right" :min="5" :max="300" @change="handleAutoRefreshIntervalChange" />
             <div style="margin-left: 5px">秒</div>
             <div style="margin-left: 20px">
               上次自动刷新：{{ lastAutoRefreshing }}
@@ -55,7 +56,7 @@
       </el-row>
       <el-row :gutter="8" style="margin-top: 20px">
         <el-col :span="12">
-          <el-container>
+          <el-container v-loading="hardwareInfoLoading">
             <el-header style="height: 50px;">
               <div class="el-header" style="font-size: 24px;">
                 硬件信息
@@ -73,16 +74,9 @@
                 >
                   <el-table-column label="硬件名" align="center" width="180">
                     <template slot-scope="{row}">
-                      <span>
-                        <el-popover
-                          placement="top-start"
-                          title="原始输出"
-                          trigger="hover"
-                          :content="row.output"
-                        >
-                          <span slot="reference"> {{ row.entry }} </span>
-                        </el-popover>
-                      </span>
+                      <el-button size="mini" @click="showOriginalOutput(row)">
+                        {{ row.entry }}
+                      </el-button>
                     </template>
                   </el-table-column>
                   <el-table-column label="描述">
@@ -98,10 +92,17 @@
         </el-col>
 
         <el-col :span="12">
-          <el-container>
+          <el-container v-loading="cmpLoading">
             <el-header style="height: 50px;">
-              <div class="el-header" style="font-size: 24px;">
-                硬件使用
+              <div class="el-header elHeaderWithOriginalOutput">
+                <div>
+                  硬件使用
+                </div>
+                <el-button icon="el-icon-refresh" circle style="margin-left: 10px" size="small" @click="refresh_server_with_auto_refresh_paused({with_cmp_usages: true}, 'cmpLoading')">
+                </el-button>
+                <el-button size="small" style="margin-left: 10px" @click="showOriginalOutput(server.cpu_mem_processes_usage_info)">
+                  原始输出
+                </el-button>
               </div>
             </el-header>
             <el-row>
@@ -134,18 +135,18 @@
 
       <el-row :gutter="8" style="margin-top: 20px">
         <el-col :span="12">
-          <el-container>
+          <el-container v-loading="accountsLoading">
             <el-header style="height: 50px;">
-              <div class="el-header" style="font-size: 24px; display: flex; align-items: center; justify-content: start">
-                <el-popover
-                  placement="top-start"
-                  title="原始输出"
-                  trigger="hover"
-                  :content="server.account_infos ? server.account_infos.output : '未知'"
-                >
-                  <span slot="reference"> 账户信息 </span>
-                </el-popover>
-                <el-button style="margin-left: 20px" type="primary" @click="handleCreateAccountButton">
+              <div class="el-header elHeaderWithOriginalOutput">
+                <div>
+                  账户信息
+                </div>
+                <el-button icon="el-icon-refresh" circle style="margin-left: 10px" size="small" @click="refresh_server_with_auto_refresh_paused({with_accounts: true}, 'accountsLoading')">
+                </el-button>
+                <el-button size="small" style="margin-left: 10px" @click="showOriginalOutput(server.account_infos)">
+                  原始输出
+                </el-button>
+                <el-button size="small" style="margin-left: 10px" type="primary" @click="handleCreateAccountButton">
                   创建账户
                 </el-button>
               </div>
@@ -186,7 +187,7 @@
                     <span>{{ row.pwd && row.pwd.length > 0 ? row.pwd : '未知' }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" min-width="150px">
+                <el-table-column label="操作" width="100" align="center">
                   <template slot-scope="{row}">
                     <el-button v-if="row.not_exists_in_server === false" size="small" type="danger" @click="handleDeleteAccountDialogButton(row.name)">
                       删除
@@ -203,23 +204,23 @@
           </el-container>
         </el-col>
         <el-col :span="12">
-          <el-container>
+          <el-container v-loading="cmpLoading">
             <el-header style="height: 50px;">
-              <div class="el-header" style="font-size: 24px;">
-                <el-popover
-                  placement="top-start"
-                  title="原始输出"
-                  trigger="hover"
-                  :content="server.cpu_mem_processes_usage_info ? server.cpu_mem_processes_usage_info.output : '未知'"
-                >
-                  <span slot="reference"> 进程信息 </span>
-                </el-popover>
+              <div class="el-header elHeaderWithOriginalOutput">
+                <div>
+                  进程信息
+                </div>
+                <el-button icon="el-icon-refresh" circle style="margin-left: 10px" size="small" @click="refresh_server_with_auto_refresh_paused({with_cmp_usages: true}, 'cmpLoading')">
+                </el-button>
+                <el-button size="small" style="margin-left: 10px" @click="showOriginalOutput(server.cpu_mem_processes_usage_info)">
+                  原始输出
+                </el-button>
               </div>
             </el-header>
             <el-main style="padding-top: 0">
               <el-table
                 :key="processTableKey"
-                :data="server.cpu_mem_processes_usage_info ? server.cpu_mem_processes_usage_info.process_infos : null"
+                :data="server.cpu_mem_processes_usage_info && !server.cpu_mem_processes_usage_info.failed_info ? server.cpu_mem_processes_usage_info.process_infos : null"
                 fit
                 highlight-current-row
                 max-height="500"
@@ -260,23 +261,23 @@
 
       <el-row :gutter="8" style="margin-top: 20px">
         <el-col :span="12">
-          <el-container>
+          <el-container v-loading="remoteAccessingUsageLoading">
             <el-header style="height: 50px;">
-              <div class="el-header" style="font-size: 24px;">
-                <el-popover
-                  placement="top-start"
-                  title="原始输出"
-                  trigger="hover"
-                  :content="server.remote_accessing_usage_info ? server.remote_accessing_usage_info.output : '未知'"
-                >
-                  <span slot="reference"> 正在远程登录这台服务器的账户 </span>
-                </el-popover>
+              <div class="el-header elHeaderWithOriginalOutput">
+                <div>
+                  正在远程登录这台服务器的账户
+                </div>
+                <el-button icon="el-icon-refresh" circle style="margin-left: 10px" size="small" @click="refresh_server_with_auto_refresh_paused({with_remote_access_usages: true}, 'remoteAccessingUsageLoading')">
+                </el-button>
+                <el-button size="small" style="margin-left: 10px" @click="showOriginalOutput(server.remote_accessing_usage_info)">
+                  原始输出
+                </el-button>
               </div>
             </el-header>
             <el-main style="padding-top: 0">
               <el-table
                 :key="remoteAccessingTableKey"
-                :data="server.remote_accessing_usage_info ? server.remote_accessing_usage_info.infos : null"
+                :data="server.remote_accessing_usage_info && !server.remote_accessing_usage_info.failed_info ? server.remote_accessing_usage_info.infos : null"
                 fit
                 highlight-current-row
                 max-height="500"
@@ -297,16 +298,20 @@
           </el-container>
         </el-col>
         <el-col :span="12">
-          <el-container>
+          <el-container v-loading="gpuUsageLoading">
             <el-header style="height: 50px;">
-              <div class="el-header" style="font-size: 24px;">
-                GPU使用信息
+              <div class="el-header elHeaderWithOriginalOutput">
+                <div>
+                  GPU使用信息
+                </div>
+                <el-button icon="el-icon-refresh" circle style="margin-left: 10px" size="small" @click="refresh_server_with_auto_refresh_paused({with_gpu_usages: true}, 'gpuUsageLoading')">
+                </el-button>
               </div>
             </el-header>
             <el-main style="padding-top: 0">
-              <p>
-                {{ server.server_gpu_usage_info ? server.server_gpu_usage_info.output : '未知' }}
-              </p>
+              <el-button type="primary" @click="showOriginalOutput(server.server_gpu_usage_info)">
+                查看原始输出
+              </el-button>
             </el-main>
           </el-container>
         </el-col>
@@ -318,11 +323,14 @@
       <el-form>
         <el-form-item>
           <el-switch
-            v-model="deleteAccountModel.doBackup"
+            v-model="deleteAccountModel.do_backup"
             :disabled="!isAble2deleteAccountWithBackup.able"
             active-text="备份用户文件夹"/>
           <div v-if="isAble2deleteAccountWithBackup.able">
             备份至文件夹：{{ isAble2deleteAccountWithBackup.targetDir }}
+          </div>
+          <div v-else-if="isAble2recoverAccountWithBackup.targetDir === null">
+            当前不能进行备份，原因为：{{ isAble2deleteAccountWithBackup.desc }}
           </div>
           <div v-else>
             当前不能备份到：{{ isAble2deleteAccountWithBackup.targetDir }}，原因为：{{ isAble2deleteAccountWithBackup.desc }}
@@ -384,13 +392,21 @@
     >
       <json-editor ref="jsonEditor" v-model="jsonEditorValue" class="overflowAuto" />
     </el-drawer>
+    <el-dialog :title="originalOutputTitle" :visible.sync="originalOutputDialogVisible">
+      <el-input
+        v-model="originalOutputText"
+        type="textarea"
+        :class="originalOutputClass"
+        :rows="20">
+      </el-input>
+    </el-dialog>
   </el-container>
 </template>
 
 <script>
 
 // import Mock from 'mockjs'
-import { getInfo, deleteServer, createAccount, deleteAccount, recoverAccount } from '@/api/server'
+import { getInfo, deleteServer, createAccount, deleteAccount, recoverAccount, backupDirInfo } from '@/api/server'
 import JsonEditor from '@/components/JsonEditor'
 
 const autoRefreshLabels2Attr = {
@@ -433,6 +449,11 @@ export default {
     }
     return {
       panelLoading: false,
+      hardwareInfoLoading: false,
+      cmpLoading: false,
+      accountsLoading: false,
+      remoteAccessingUsageLoading: false,
+      gpuUsageLoading: false,
       server: {
         basic: null,
         access_failed_info: null,
@@ -447,7 +468,7 @@ export default {
       hardwareTableKey: 3,
       hardwareUsageTableKey: 4,
       remoteAccessingTableKey: 5,
-      defaultRefreshOpts: {
+      refreshAllOpts: {
         with_accounts: true,
         with_cmp_usages: true,
         with_gpu_usages: true,
@@ -504,12 +525,14 @@ export default {
       createAccountFormVisible: false,
       createAccountConfirmLoading: false,
       deleteAccountDialogVisible: false,
+      deleteAccountDialogButtonLoading: false,
       deleteAccountModel: {
         account_name: '',
-        doBackup: false
+        do_backup: false
       },
       deleteAccountConfirmLoading: false,
       recoverAccountDialogVisible: false,
+      recoverAccountDialogButtonLoading: false,
       recoverAccountRules: {
         account_pwd: [
           { required: true, message: '密码不能为空', trigger: 'change' },
@@ -521,7 +544,11 @@ export default {
         account_name: '',
         account_pwd: '',
         do_backup: false
-      }
+      },
+      originalOutputTitle: '',
+      originalOutputClass: 'originalOutputFailedInfoClass',
+      originalOutputText: '',
+      originalOutputDialogVisible: false
     }
   },
   computed: {
@@ -531,14 +558,22 @@ export default {
         return data
       }
       const cpu_info = this.server.hardware_info.cpu_hardware_info.info
+      let cpu_description = ''
+
+      if (!this.server.hardware_info.cpu_hardware_info.failed_info) {
+        cpu_description = `架构：${cpu_info.architecture} <br> 类型：${cpu_info.model_name} <br> 核心数：${cpu_info.cores} <br> 每核心线程：${cpu_info.threads_per_core}`
+      } else {
+        cpu_description = '未知'
+      }
       data.push({
         output: this.server.hardware_info.cpu_hardware_info.output,
         entry: 'CPU',
-        description: `架构：${cpu_info.architecture} <br> 类型：${cpu_info.model_name} <br> 核心数：${cpu_info.cores} <br> 每核心线程：${cpu_info.threads_per_core}`
+        description: cpu_description,
+        failed_info: this.server.hardware_info.cpu_hardware_info.failed_info
       })
       const gpu_info = this.server.hardware_info.gpu_hardware_infos
       const gpus = []
-      if (gpu_info.infos) {
+      if (!gpu_info.failed_info && gpu_info.infos) {
         for (const gpu of gpu_info.infos) {
           gpus.push(`${gpu.product}`)
         }
@@ -546,7 +581,8 @@ export default {
       data.push({
         output: this.server.hardware_info.gpu_hardware_infos.output,
         entry: 'GPU',
-        description: gpus.length > 0 ? `型号：[${gpus.join(', ')}]` : '未知'
+        description: gpus.length > 0 ? `型号：[${gpus.join(', ')}]` : '未知',
+        failed_info: gpu_info.failed_info
       })
       return data
     },
@@ -674,7 +710,7 @@ export default {
   },
   created() {
     this.panelLoading = true
-    this.refresh_server(this.defaultRefreshOpts).finally(() => {
+    this.refresh_server(this.refreshAllOpts).finally(() => {
       setTimeout(() => {
         this.panelLoading = false
       }, 1000)
@@ -688,6 +724,17 @@ export default {
         return this.server.cpu_mem_processes_usage_info.process_infos
       }
       return null
+    },
+    refresh_server_with_auto_refresh_paused(opts, loading) {
+      this[loading] = true
+      const _this = this
+      return this.withRecoverAutoRefresh(function() {
+        return _this.refresh_server(opts)
+      }).finally(() => {
+        setTimeout(() => {
+          this[loading] = false
+        }, 1000)
+      })
     },
     refresh_server(opts) {
       console.log('refresh_server, opts', opts)
@@ -809,6 +856,9 @@ export default {
         account_name: '',
         account_pwd: ''
       }
+      this.$nextTick(() => {
+        this.$refs['createAccountForm'].clearValidate()
+      })
     },
     refreshAccounts() {
       this.accountTableLoading = true
@@ -832,21 +882,63 @@ export default {
         this.handleAutoRefreshEnableChanged(true)
       }
     },
+    getAccount(account_name) {
+      if (!this.server || !this.server.account_infos || !this.server.account_infos.accounts) {
+        return null
+      }
+      for (const acc of this.server.account_infos.accounts) {
+        if (acc.name === account_name) {
+          return acc
+        }
+      }
+      return null
+    },
     handleDeleteAccountDialogButton(account_name) {
-      this.deleteAccountModel.account_name = account_name
-      this.deleteAccountDialogVisible = true
+      this.deleteAccountDialogButtonLoading = true
+      backupDirInfo(this.host, this.port, account_name).then((res) => {
+        console.log('handleDeleteAccountDialogButton backupDirInfo res', res)
+        const acc = this.getAccount(account_name)
+        if (acc === null) {
+          return Promise.reject('该账户不存在！')
+        }
+        acc.backup_dir_info = res.data
+        this.deleteAccountDialogButtonLoading = false
+        this.deleteAccountModel.account_name = account_name
+        this.deleteAccountModel.do_backup = false
+        this.deleteAccountDialogVisible = true
+      }).catch(err => {
+        console.log('backupDirInfo failed, err', err)
+      })
     },
     handleRecoverAccountDialogButton(account_name, account_pwd) {
-      this.recoverAccountModel.account_name = account_name
-      this.recoverAccountModel.account_pwd = account_pwd
-      this.recoverAccountDialogVisible = true
+      this.recoverAccountDialogButtonLoading = true
+      backupDirInfo(this.host, this.port, account_name).then((res) => {
+        console.log('handleRecoverAccountDialogButton backupDirInfo res', res)
+        const acc = this.getAccount(account_name)
+        if (acc === null) {
+          return Promise.reject('该账户不存在！')
+        }
+        acc.backup_dir_info = res.data
+        this.recoverAccountModel = {
+          account_name: account_name,
+          account_pwd: account_pwd,
+          do_backup: false
+        }
+        this.recoverAccountDialogVisible = true
+        this.recoverAccountDialogButtonLoading = false
+        this.$nextTick(() => {
+          this.$refs['recoverAccountForm'].clearValidate()
+        })
+      }).catch(err => {
+        console.log('backupDirInfo failed, err', err)
+      })
     },
     handleDeleteAccount() {
       console.log('handleDeleteAccountButton deleteAccountModel', this.deleteAccountModel)
       this.deleteAccountConfirmLoading = true
       const _this = this
       return _this.withRecoverAutoRefresh(function() {
-        return deleteAccount(_this.host, _this.port, _this.deleteAccountModel.account_name, _this.deleteAccountModel.doBackup).then(() => {
+        return deleteAccount(_this.host, _this.port, _this.deleteAccountModel.account_name, _this.deleteAccountModel.do_backup).then(() => {
           _this.$message.success('删除账户成功！')
           return _this.refreshAccounts()
         }).catch(err => {
@@ -879,6 +971,29 @@ export default {
           })
         })
       })
+    },
+    showOriginalOutput(infoObj) {
+      this.originalOutputText = ''
+      this.originalOutputTitle = '原始输出'
+      this.originalOutputClass = 'originalOutputFailedInfoClass'
+      const failedClass = 'originalOutputFailedInfoClass'
+      console.log('showOriginalOutput infoObj', infoObj)
+      if (infoObj && infoObj.failed_info) {
+        this.originalOutputTitle = '服务器返回错误信息！'
+        this.originalOutputText = `原始输出：${infoObj.output} \n原因描述：${infoObj.failed_info.cause_description}`
+        this.originalOutputClass = failedClass
+        this.originalOutputDialogVisible = true
+        return
+      }
+      if (!infoObj || !infoObj.output) {
+        this.originalOutputText = '获取数据失败！'
+        this.originalOutputClass = failedClass
+        this.originalOutputDialogVisible = true
+        return
+      }
+      this.originalOutputTitle = '原始输出'
+      this.originalOutputText = infoObj.output
+      this.originalOutputDialogVisible = true
     }
     // handleServerUpdateButton() {
     //   this.serverUpdateModel = {
@@ -997,5 +1112,12 @@ export default {
 }
 .overflowAuto::-webkit-scrollbar-thumb {
   background: rgb(224, 214, 235);
+}
+
+.elHeaderWithOriginalOutput {
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: start;
 }
 </style>
