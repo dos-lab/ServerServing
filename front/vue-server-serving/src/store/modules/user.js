@@ -124,11 +124,6 @@ const actions = {
 
   // dynamically modify permissions
   async changeRoles({ commit, dispatch }, role) {
-    const token = role + '-token'
-
-    commit('SET_TOKEN', token)
-    setToken(token)
-
     const data = await dispatch('getInfo')
     console.log('changeRoles data', data)
     const roles = data.admin === true ? ['admin'] : ['editor']

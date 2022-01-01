@@ -30,10 +30,18 @@ const (
 	CentOS  LinuxOSType = "centos"
 )
 
-func OpenExecutorService(Host string, Port uint, osType daModels.OSType, adminAccountName, adminAccountPwd string) (ExecutorService, *SErr.APIErr) {
-	switch osType {
+type openExecutorServiceParam struct {
+	Host             string
+	Port             uint
+	OSType           daModels.OSType
+	AdminAccountName string
+	AdminAccountPwd  string
+}
+
+func openExecutorService(param *openExecutorServiceParam) (ExecutorService, *SErr.APIErr) {
+	switch param.OSType {
 	case daModels.OSTypeLinux:
-		return OpenLinuxSSHExecutorService(Host, Port, adminAccountName, adminAccountPwd)
+		return OpenLinuxSSHExecutorService(param.Host, param.Port, param.AdminAccountName, param.AdminAccountPwd)
 	default:
 		panic("Unimplemented")
 	}
@@ -167,7 +175,7 @@ type ExecutorServiceMemoryHardwareResp struct {
 
 type ExecutorServiceRemoteAccessResp struct {
 	ExecutorServiceRespCommon
-	RemoteAccessingAccountInfos []*internal_models.ServerRemoteAccessingAccountInfo
+	RemoteAccessingAccountInfos []*internal_models.ServerRemoteAccessingAccount
 }
 
 type ExecutorServiceGetBackupDirResp struct {
@@ -201,24 +209,25 @@ func OpenLinuxSSHExecutorService(host string, port uint, account, pwd string) (E
 	if osType == Unknown {
 		return nil, SErr.SSHConnectionErr.CustomMessageF("该服务器的操作系统类型为不支持的类型！服务器地址为%s:%d，用户名为：%s，密码为：%s", host, port, account, pwd)
 	}
+	var impl ExecutorService
 	switch osType {
 	case Ubuntu:
-		template := NewLinuxSSHExecutorServiceTemplate(Ubuntu, account, pwd, SSHConn)
-		ubuntuScv := NewUbuntuSSHExecutorService()
 		// golang 的模板方法需要上下两层分别持有引用。
-		template.implement = ubuntuScv
-		ubuntuScv.LinuxSSHExecutorServiceTemplate = template
-		return ubuntuScv, nil
+		template := NewLinuxSSHExecutorServiceTemplate(Ubuntu, account, pwd, SSHConn)
+		svc := NewUbuntuSSHExecutorService()
+		template.implement = svc
+		svc.LinuxSSHExecutorServiceTemplate = template
+		impl = svc
 	case CentOS:
 		template := NewLinuxSSHExecutorServiceTemplate(CentOS, account, pwd, SSHConn)
-		centosScv := NewCentOSSSHExecutorService()
-		// golang 的模板方法需要上下两层分别持有引用。
-		template.implement = centosScv
-		centosScv.LinuxSSHExecutorServiceTemplate = template
-		return NewLinuxSSHExecutorServiceTemplate(CentOS, account, pwd, SSHConn), nil
+		svc := NewCentOSSSHExecutorService()
+		template.implement = svc
+		svc.LinuxSSHExecutorServiceTemplate = template
+		impl = svc
 	default:
 		panic("Unsupported LinuxOSType")
 	}
+	return impl, nil
 }
 
 type LinuxSSHExecutorServiceTemplate struct {
@@ -818,12 +827,12 @@ func (s *LinuxSSHExecutorServiceTemplate) GetRemoteAccessInfos() (*ExecutorServi
 		}
 		accountName := m[1]
 		what := m[2]
-		resp.RemoteAccessingAccountInfos = append(resp.RemoteAccessingAccountInfos, &internal_models.ServerRemoteAccessingAccountInfo{
+		resp.RemoteAccessingAccountInfos = append(resp.RemoteAccessingAccountInfos, &internal_models.ServerRemoteAccessingAccount{
 			AccountName: accountName,
 			What:        what,
 		})
 	}
-	resp.RemoteAccessingAccountInfos = make([]*internal_models.ServerRemoteAccessingAccountInfo, 0)
+	resp.RemoteAccessingAccountInfos = make([]*internal_models.ServerRemoteAccessingAccount, 0)
 	lines := util.SplitLine(output)
 	for _, line := range lines {
 		matchRemoteAccessing(line)

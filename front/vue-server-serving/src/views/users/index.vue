@@ -44,7 +44,7 @@
           <el-button type="primary" size="mini" :disabled="!checkPermission(['admin']) && row.name !== $store.getters.name" @click="handleUpdate(row)">
             编辑信息
           </el-button>
-          <el-button v-if="row.admin" :loading="updateAdminButtonLoading" :disabled="!checkPermission(['admin'])" size="mini" @click="handleUpdateAdmin(row,false)">
+          <el-button v-if="row.admin" :loading="updateAdminButtonLoading" :disabled="row.name === 'admin' || !checkPermission(['admin'])" size="mini" @click="handleUpdateAdmin(row,false)">
             取消管理员
           </el-button>
           <el-button v-if="!row.admin" :loading="updateAdminButtonLoading" :disabled="!checkPermission(['admin'])" size="mini" type="success" @click="handleUpdateAdmin(row, true)">
@@ -218,6 +218,10 @@ export default {
       this.getUsers()
     },
     handleUpdateAdmin(row, switch2IsAdmin) {
+      if (!switch2IsAdmin && row.name === 'admin') {
+        this.$message.error('admin是顶级管理员，不能取消自己的管理员！')
+        return null
+      }
       this.updateAdminButtonLoading = true
       return this.updateUser(row.id, {
         admin: switch2IsAdmin
@@ -231,9 +235,12 @@ export default {
         console.log('更新管理员失败, err', err)
       }).finally(() => {
         if (row.name === this.$store.getters.name && switch2IsAdmin === false) {
-          this.$store.dispatch('user/changeRoles', ['editor'])
+          this.$store.dispatch('user/changeRoles', ['editor']).finally(() => {
+            this.updateAdminButtonLoading = false
+          })
+        } else {
+          this.updateAdminButtonLoading = false
         }
-        this.updateAdminButtonLoading = false
       })
     },
     sortChange(data) {

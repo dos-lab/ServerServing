@@ -19,8 +19,40 @@ func GetServersService() *ServersService {
 	return &ServersService{}
 }
 
+type withESConnFunc func(es ExecutorService) *SErr.APIErr
+
+func (s *ServersService) withConnectionByHostPort(c *gin.Context, Host string, Port uint, f withESConnFunc) *SErr.APIErr {
+	return s.withConnection(c, func() (ExecutorService, *SErr.APIErr) {
+		return s.openExecutorServiceByHostPort(c, Host, Port)
+	}, f)
+}
+
+func (s *ServersService) withConnectionByParam(c *gin.Context, param *openExecutorServiceParam, f withESConnFunc) *SErr.APIErr {
+	return s.withConnection(c, func() (ExecutorService, *SErr.APIErr) {
+		return openExecutorService(param)
+	}, f)
+}
+
+func (s *ServersService) withConnection(c *gin.Context, openConn func() (ExecutorService, *SErr.APIErr), f withESConnFunc) *SErr.APIErr {
+	es, err := openConn()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := es.Close()
+		log.Printf("ExecutorService Close failed, err=[%s]", err)
+	}()
+	return f(es)
+}
+
 func (s *ServersService) ConnectionTest(c *gin.Context, Host string, Port uint, OSType daModels.OSType, accountName, accountPwd string) *SErr.APIErr {
-	es, err := OpenExecutorService(Host, Port, OSType, accountName, accountPwd)
+	es, err := s.openExecutorService(&openExecutorServiceParam{
+		Host:             Host,
+		Port:             Port,
+		OSType:           OSType,
+		AdminAccountName: accountName,
+		AdminAccountPwd:  accountPwd,
+	})
 	if err != nil {
 		return err
 	}
@@ -29,24 +61,52 @@ func (s *ServersService) ConnectionTest(c *gin.Context, Host string, Port uint, 
 }
 
 func (s *ServersService) Create(c *gin.Context, Host string, Port uint, OSType daModels.OSType, adminAccountName, adminAccountPwd string) *SErr.APIErr {
-	es, err := OpenExecutorService(Host, Port, OSType, adminAccountName, adminAccountPwd)
-	if err != nil {
-		return err
-	}
-	defer es.Close()
-	// 能够联通该服务器，则调用MySQL创建。
-	serverDal := dal.GetServerDal()
-	err = serverDal.Create(&daModels.Server{
+	err := s.withConnectionByParam(c, &openExecutorServiceParam{
 		Host:             Host,
 		Port:             Port,
+		OSType:           OSType,
 		AdminAccountName: adminAccountName,
 		AdminAccountPwd:  adminAccountPwd,
-		OSType:           OSType,
+	}, func(es ExecutorService) *SErr.APIErr {
+		// 能够联通该服务器，则调用MySQL创建。
+		serverDal := dal.GetServerDal()
+		err := serverDal.Create(&daModels.Server{
+			Host:             Host,
+			Port:             Port,
+			AdminAccountName: adminAccountName,
+			AdminAccountPwd:  adminAccountPwd,
+			OSType:           OSType,
+		})
+		if err != nil {
+			log.Printf("ServersService serverDal.Create failed, err=[%v]", err)
+			return err
+		}
+		return nil
 	})
+	//es, err := openExecutorService(&openExecutorServiceParam{
+	//	Host:             Host,
+	//	Port:             Port,
+	//	OSType:           OSType,
+	//	AdminAccountName: adminAccountName,
+	//	AdminAccountPwd:  adminAccountPwd,
+	//})
 	if err != nil {
-		log.Printf("ServersService serverDal.Create failed, err=[%v]", err)
 		return err
 	}
+	//defer es.Close()
+	// 能够联通该服务器，则调用MySQL创建。
+	//serverDal := dal.GetServerDal()
+	//err = serverDal.Create(&daModels.Server{
+	//	Host:             Host,
+	//	Port:             Port,
+	//	AdminAccountName: adminAccountName,
+	//	AdminAccountPwd:  adminAccountPwd,
+	//	OSType:           OSType,
+	//})
+	//if err != nil {
+	//	log.Printf("ServersService serverDal.Create failed, err=[%v]", err)
+	//	return err
+	//}
 	return nil
 }
 
@@ -88,22 +148,34 @@ func (s *ServersService) Info(c *gin.Context, Host string, Port uint, arg *inter
 		Accounts: accounts,
 	}
 	// 第二步，初始化到该服务器的连接，如果连接失败，则直接返回错误。
-	es, err := s.openExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
+	err = s.withConnectionByParam(c, &openExecutorServiceParam{
+		Host:             serverBasic.Host,
+		Port:             serverBasic.Port,
+		OSType:           serverBasic.OSType,
+		AdminAccountName: serverBasic.AdminAccountName,
+		AdminAccountPwd:  serverBasic.AdminAccountPwd,
+	}, func(es ExecutorService) *SErr.APIErr {
+		s.loadInfoFromServer(serverInfo, es, arg)
+		return nil
+	})
+	//es, err := s.openExecutorService(&openExecutorServiceParam{
+	//	Host:             serverBasic.Host,
+	//	Port:             serverBasic.Port,
+	//	OSType:           serverBasic.OSType,
+	//	AdminAccountName: serverBasic.AdminAccountName,
+	//	AdminAccountPwd:  serverBasic.AdminAccountPwd,
+	//})
 	if err != nil {
 		serverInfo.AccessFailedInfo = &internal_models.ServerInfoLoadingFailedInfo{
 			CauseDescription: err.Message,
 		}
 		return serverInfo, err
 	}
-	defer func() {
-		_ = es.Close()
-	}()
-	s.loadInfoFromServer(serverInfo, es, arg)
 	return serverInfo, nil
 }
 
-func (s *ServersService) openExecutorService(Host string, Port uint, osType daModels.OSType, AdminAccountName, AdminAccountPwd string) (ExecutorService, *SErr.APIErr) {
-	es, err := OpenExecutorService(Host, Port, osType, AdminAccountName, AdminAccountPwd)
+func (s *ServersService) openExecutorService(param *openExecutorServiceParam) (ExecutorService, *SErr.APIErr) {
+	es, err := openExecutorService(param)
 	if err != nil {
 		causeDescription := fmt.Sprintf("在尝试使用管理员账户与该服务器建连时失败！请检查该账户的配置以及网络状况！内嵌的出错信息为：[%s]", err.Message)
 		log.Printf("ServersService Info，causeDescription=[%s]", causeDescription)
@@ -117,7 +189,14 @@ func (s *ServersService) openExecutorServiceByHostPort(c *gin.Context, Host stri
 	if err != nil {
 		return nil, err
 	}
-	return s.openExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
+	return s.openExecutorService(
+		&openExecutorServiceParam{
+			Host:             serverBasic.Host,
+			Port:             serverBasic.Port,
+			OSType:           serverBasic.OSType,
+			AdminAccountName: serverBasic.AdminAccountName,
+			AdminAccountPwd:  serverBasic.AdminAccountPwd,
+		})
 }
 
 func (s *ServersService) loadInfoFromServer(targetServerInfo *internal_models.ServerInfo, es ExecutorService, arg *internal_models.LoadServerDetailArg) {
@@ -170,20 +249,40 @@ func (s *ServersService) Infos(c *gin.Context, from, size uint, arg *internal_mo
 				Accounts: accounts,
 			}
 			// 第二步，初始化到该服务器的连接，如果连接失败，则直接返回错误。
-			es, err := s.openExecutorService(serverBasic.Host, serverBasic.Port, serverBasic.OSType, serverBasic.AdminAccountName, serverBasic.AdminAccountPwd)
+			err := s.withConnectionByParam(c, &openExecutorServiceParam{
+				Host:             serverBasic.Host,
+				Port:             serverBasic.Port,
+				OSType:           serverBasic.OSType,
+				AdminAccountName: serverBasic.AdminAccountName,
+				AdminAccountPwd:  serverBasic.AdminAccountPwd,
+			}, func(es ExecutorService) *SErr.APIErr {
+				s.loadInfoFromServer(serverInfo, es, arg)
+				mu.Lock()
+				defer mu.Unlock()
+				resultServerInfos = append(resultServerInfos, serverInfo)
+				return nil
+			})
+			//es, err := s.openExecutorService(&openExecutorServiceParam{
+			//	Host:             serverBasic.Host,
+			//	Port:             serverBasic.Port,
+			//	OSType:           serverBasic.OSType,
+			//	AdminAccountName: serverBasic.AdminAccountName,
+			//	AdminAccountPwd:  serverBasic.AdminAccountPwd,
+			//})
 			if err != nil {
 				serverInfo.AccessFailedInfo = &internal_models.ServerInfoLoadingFailedInfo{
 					CauseDescription: err.Message,
 				}
-			} else {
-				defer func() {
-					_ = es.Close()
-				}()
-				s.loadInfoFromServer(serverInfo, es, arg)
 			}
-			mu.Lock()
-			defer mu.Unlock()
-			resultServerInfos = append(resultServerInfos, serverInfo)
+			//} else {
+			//	defer func() {
+			//		_ = es.Close()
+			//	}()
+			//	s.loadInfoFromServer(serverInfo, es, arg)
+			//}
+			//mu.Lock()
+			//defer mu.Unlock()
+			//resultServerInfos = append(resultServerInfos, serverInfo)
 		})
 	}
 	wg.Wait()
@@ -203,6 +302,7 @@ func (s *ServersService) loadAccounts(es ExecutorService, arg *internal_models.L
 	getAccountListResp, err := es.GetAccountList()
 	serverInfo.AccountInfos.Output = getAccountListResp.Output
 	if err != nil {
+		serverInfo.AccountInfos.Accounts = nil
 		serverInfo.AccountInfos.FailedInfo = &internal_models.ServerInfoLoadingFailedInfo{
 			CauseDescription: fmt.Sprintf("向服务器查询用户列表时出错，es=[%s], 出错信息为：[%s]", es, err.Error()),
 		}

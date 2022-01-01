@@ -15,7 +15,7 @@ func GetSessionsService() *SessionsService {
 	return &SessionsService{}
 }
 
-var userIDSessionKey = "userID"
+// var userIDSessionKey = "userID"
 
 const tokenKey = "X-Token"
 

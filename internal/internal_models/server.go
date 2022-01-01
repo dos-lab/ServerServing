@@ -226,11 +226,11 @@ type ServerAccountInfos struct {
 type ServerRemoteAccessingUsagesInfo struct {
 	*ServerInfoCommon
 
-	Infos []*ServerRemoteAccessingAccountInfo `json:"infos"`
+	Infos []*ServerRemoteAccessingAccount `json:"infos"`
 }
 
-// ServerRemoteAccessingAccountInfo 表示一个正在远端访问的用户的信息。
-type ServerRemoteAccessingAccountInfo struct {
+// ServerRemoteAccessingAccount 表示一个正在远端访问的用户的信息。
+type ServerRemoteAccessingAccount struct {
 	AccountName string `json:"account_name"`
 	// What 表示该远程访问的用户正在执行的命令。
 	What string `json:"what"`

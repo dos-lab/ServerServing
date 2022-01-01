@@ -198,7 +198,7 @@ const getAccount = function(server, account_name) {
 }
 
 function filterWithOptions(copied, query) {
-  console.log('filter Option', query)
+  // console.log('filter Option', query)
   copied.account_infos = query.with_accounts === 'true' ? copied.account_infos : null
   copied.cpu_mem_processes_usage_info = query.with_cmp_usages === 'true' ? copied.cpu_mem_processes_usage_info : null
   copied.server_gpu_usage_info = query.with_gpu_usages === 'true' ? copied.server_gpu_usage_info : null
