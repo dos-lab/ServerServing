@@ -127,7 +127,11 @@ definitions:
         type: string
       deleted_at:
         $ref: '#/definitions/gorm.DeletedAt'
+      description:
+        type: string
       host:
+        type: string
+      name:
         type: string
       os_type:
         type: string
@@ -200,7 +204,11 @@ definitions:
         type: string
       admin_account_pwd:
         type: string
+      description:
+        type: string
       host:
+        type: string
+      name:
         type: string
       os_type:
         type: string
@@ -341,7 +349,7 @@ definitions:
         description: PID 进程号。
         type: integer
     type: object
-  internal_models.ServerRemoteAccessingAccountInfo:
+  internal_models.ServerRemoteAccessingAccount:
     properties:
       account_name:
         type: string
@@ -355,10 +363,23 @@ definitions:
         $ref: '#/definitions/internal_models.ServerInfoLoadingFailedInfo'
       infos:
         items:
-          $ref: '#/definitions/internal_models.ServerRemoteAccessingAccountInfo'
+          $ref: '#/definitions/internal_models.ServerRemoteAccessingAccount'
         type: array
       output:
         type: string
+    type: object
+  internal_models.ServerUpdateRequest:
+    properties:
+      admin_account_name:
+        type: string
+      admin_account_pwd:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+    type: object
+  internal_models.ServerUpdateResponse:
     type: object
   internal_models.SessionsCheckResponse:
     properties:
@@ -464,6 +485,10 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/internal_models.ServerDeleteRequest'
+      - description: x-token
+        in: header
+        name: x-token
+        type: string
       produces:
       - application/json
       responses:
@@ -527,6 +552,10 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/internal_models.ServerCreateRequest'
+      - description: x-token
+        in: header
+        name: x-token
+        type: string
       produces:
       - application/json
       responses:
@@ -584,6 +613,38 @@ paths:
       summary: 查询server信息。
       tags:
       - server
+    put:
+      parameters:
+      - description: host
+        in: path
+        name: host
+        required: true
+        type: string
+      - description: port
+        in: path
+        name: port
+        required: true
+        type: integer
+      - description: serverUpdateRequest
+        in: body
+        name: serverUpdateRequest
+        required: true
+        schema:
+          $ref: '#/definitions/internal_models.ServerUpdateRequest'
+      - description: x-token
+        in: header
+        name: x-token
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_models.ServerUpdateResponse'
+      summary: 更新服务器数据
+      tags:
+      - server
   /api/v1/servers/accounts:
     delete:
       parameters:
@@ -593,6 +654,10 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/internal_models.ServerAccountDeleteRequest'
+      - description: x-token
+        in: header
+        name: x-token
+        type: string
       produces:
       - application/json
       responses:

@@ -17,6 +17,8 @@ type Server struct {
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 
+	Name             string `gorm:"unique;index:idx_servers_name;size:20"`
+	Description      string `gorm:"size:140"`
 	Host             string `gorm:"primaryKey;index:idx_servers_host_port,priority:1;size:20"`
 	Port             uint   `gorm:"primaryKey;index:idx_servers_host_port,priority:2"`
 	AdminAccountName string `gorm:"index;not null;size:50"`

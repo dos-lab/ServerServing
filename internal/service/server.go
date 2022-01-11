@@ -5,6 +5,7 @@ import (
 	SErr "ServerServing/err"
 	"ServerServing/internal/dal"
 	"ServerServing/internal/internal_models"
+	"ServerServing/internal/service/server_executor"
 	"ServerServing/util"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -19,34 +20,36 @@ func GetServersService() *ServersService {
 	return &ServersService{}
 }
 
-type withESConnFunc func(es ExecutorService) *SErr.APIErr
+type withESConnFunc func(es server_executor.ExecutorService) *SErr.APIErr
 
 func (s *ServersService) withConnectionByHostPort(c *gin.Context, Host string, Port uint, f withESConnFunc) *SErr.APIErr {
-	return s.withConnection(c, func() (ExecutorService, *SErr.APIErr) {
+	return s.withConnection(c, func() (server_executor.ExecutorService, *SErr.APIErr) {
 		return s.openExecutorServiceByHostPort(c, Host, Port)
 	}, f)
 }
 
-func (s *ServersService) withConnectionByParam(c *gin.Context, param *openExecutorServiceParam, f withESConnFunc) *SErr.APIErr {
-	return s.withConnection(c, func() (ExecutorService, *SErr.APIErr) {
-		return openExecutorService(param)
+func (s *ServersService) withConnectionByParam(c *gin.Context, param *server_executor.OpenExecutorServiceParam, f withESConnFunc) *SErr.APIErr {
+	return s.withConnection(c, func() (server_executor.ExecutorService, *SErr.APIErr) {
+		return server_executor.OpenExecutorService(param)
 	}, f)
 }
 
-func (s *ServersService) withConnection(c *gin.Context, openConn func() (ExecutorService, *SErr.APIErr), f withESConnFunc) *SErr.APIErr {
+func (s *ServersService) withConnection(c *gin.Context, openConn func() (server_executor.ExecutorService, *SErr.APIErr), f withESConnFunc) *SErr.APIErr {
 	es, err := openConn()
 	if err != nil {
 		return err
 	}
 	defer func() {
 		err := es.Close()
-		log.Printf("ExecutorService Close failed, err=[%s]", err)
+		if err != nil {
+			log.Printf("ExecutorService Close failed, err=[%s]", err)
+		}
 	}()
 	return f(es)
 }
 
 func (s *ServersService) ConnectionTest(c *gin.Context, Host string, Port uint, OSType daModels.OSType, accountName, accountPwd string) *SErr.APIErr {
-	es, err := s.openExecutorService(&openExecutorServiceParam{
+	es, err := s.openExecutorService(&server_executor.OpenExecutorServiceParam{
 		Host:             Host,
 		Port:             Port,
 		OSType:           OSType,
@@ -60,22 +63,24 @@ func (s *ServersService) ConnectionTest(c *gin.Context, Host string, Port uint, 
 	return nil
 }
 
-func (s *ServersService) Create(c *gin.Context, Host string, Port uint, OSType daModels.OSType, adminAccountName, adminAccountPwd string) *SErr.APIErr {
-	err := s.withConnectionByParam(c, &openExecutorServiceParam{
-		Host:             Host,
-		Port:             Port,
-		OSType:           OSType,
-		AdminAccountName: adminAccountName,
-		AdminAccountPwd:  adminAccountPwd,
-	}, func(es ExecutorService) *SErr.APIErr {
+func (s *ServersService) Create(c *gin.Context, param *internal_models.ServerCreateRequest) *SErr.APIErr {
+	err := s.withConnectionByParam(c, &server_executor.OpenExecutorServiceParam{
+		Host:             param.Host,
+		Port:             param.Port,
+		OSType:           param.OSType,
+		AdminAccountName: param.AdminAccountName,
+		AdminAccountPwd:  param.AdminAccountPwd,
+	}, func(es server_executor.ExecutorService) *SErr.APIErr {
 		// 能够联通该服务器，则调用MySQL创建。
 		serverDal := dal.GetServerDal()
 		err := serverDal.Create(&daModels.Server{
-			Host:             Host,
-			Port:             Port,
-			AdminAccountName: adminAccountName,
-			AdminAccountPwd:  adminAccountPwd,
-			OSType:           OSType,
+			Name:             param.Name,
+			Description:      param.Description,
+			Host:             param.Host,
+			Port:             param.Port,
+			AdminAccountName: param.AdminAccountName,
+			AdminAccountPwd:  param.AdminAccountPwd,
+			OSType:           param.OSType,
 		})
 		if err != nil {
 			log.Printf("ServersService serverDal.Create failed, err=[%v]", err)
@@ -83,30 +88,41 @@ func (s *ServersService) Create(c *gin.Context, Host string, Port uint, OSType d
 		}
 		return nil
 	})
-	//es, err := openExecutorService(&openExecutorServiceParam{
-	//	Host:             Host,
-	//	Port:             Port,
-	//	OSType:           OSType,
-	//	AdminAccountName: adminAccountName,
-	//	AdminAccountPwd:  adminAccountPwd,
-	//})
 	if err != nil {
 		return err
 	}
-	//defer es.Close()
-	// 能够联通该服务器，则调用MySQL创建。
-	//serverDal := dal.GetServerDal()
-	//err = serverDal.Create(&daModels.Server{
-	//	Host:             Host,
-	//	Port:             Port,
-	//	AdminAccountName: adminAccountName,
-	//	AdminAccountPwd:  adminAccountPwd,
-	//	OSType:           OSType,
-	//})
-	//if err != nil {
-	//	log.Printf("ServersService serverDal.Create failed, err=[%v]", err)
-	//	return err
-	//}
+	return nil
+}
+
+func (s *ServersService) Update(c *gin.Context, Host string, Port uint, param *internal_models.ServerUpdateRequest) *SErr.APIErr {
+	basicInfo, _, err := s.basicInfo(c, Host, Port)
+	if err != nil {
+		return err
+	}
+	err = s.withConnectionByParam(c, &server_executor.OpenExecutorServiceParam{
+		Host:             Host,
+		Port:             Port,
+		OSType:           basicInfo.OSType,
+		AdminAccountName: param.AdminAccountName,
+		AdminAccountPwd:  param.AdminAccountPwd,
+	}, func(es server_executor.ExecutorService) *SErr.APIErr {
+		// 能够联通该服务器，则调用MySQL创建。
+		serverDal := dal.GetServerDal()
+		err := serverDal.Update(Host, Port, &daModels.Server{
+			Name:             param.Name,
+			Description:      param.Description,
+			AdminAccountName: param.AdminAccountName,
+			AdminAccountPwd:  param.AdminAccountPwd,
+		})
+		if err != nil {
+			log.Printf("ServersService serverDal.Update failed, err=[%v]", err)
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -148,23 +164,16 @@ func (s *ServersService) Info(c *gin.Context, Host string, Port uint, arg *inter
 		Accounts: accounts,
 	}
 	// 第二步，初始化到该服务器的连接，如果连接失败，则直接返回错误。
-	err = s.withConnectionByParam(c, &openExecutorServiceParam{
+	err = s.withConnectionByParam(c, &server_executor.OpenExecutorServiceParam{
 		Host:             serverBasic.Host,
 		Port:             serverBasic.Port,
 		OSType:           serverBasic.OSType,
 		AdminAccountName: serverBasic.AdminAccountName,
 		AdminAccountPwd:  serverBasic.AdminAccountPwd,
-	}, func(es ExecutorService) *SErr.APIErr {
+	}, func(es server_executor.ExecutorService) *SErr.APIErr {
 		s.loadInfoFromServer(serverInfo, es, arg)
 		return nil
 	})
-	//es, err := s.openExecutorService(&openExecutorServiceParam{
-	//	Host:             serverBasic.Host,
-	//	Port:             serverBasic.Port,
-	//	OSType:           serverBasic.OSType,
-	//	AdminAccountName: serverBasic.AdminAccountName,
-	//	AdminAccountPwd:  serverBasic.AdminAccountPwd,
-	//})
 	if err != nil {
 		serverInfo.AccessFailedInfo = &internal_models.ServerInfoLoadingFailedInfo{
 			CauseDescription: err.Message,
@@ -174,8 +183,8 @@ func (s *ServersService) Info(c *gin.Context, Host string, Port uint, arg *inter
 	return serverInfo, nil
 }
 
-func (s *ServersService) openExecutorService(param *openExecutorServiceParam) (ExecutorService, *SErr.APIErr) {
-	es, err := openExecutorService(param)
+func (s *ServersService) openExecutorService(param *server_executor.OpenExecutorServiceParam) (server_executor.ExecutorService, *SErr.APIErr) {
+	es, err := server_executor.OpenExecutorService(param)
 	if err != nil {
 		causeDescription := fmt.Sprintf("在尝试使用管理员账户与该服务器建连时失败！请检查该账户的配置以及网络状况！内嵌的出错信息为：[%s]", err.Message)
 		log.Printf("ServersService Info，causeDescription=[%s]", causeDescription)
@@ -184,13 +193,13 @@ func (s *ServersService) openExecutorService(param *openExecutorServiceParam) (E
 	return es, nil
 }
 
-func (s *ServersService) openExecutorServiceByHostPort(c *gin.Context, Host string, Port uint) (ExecutorService, *SErr.APIErr) {
+func (s *ServersService) openExecutorServiceByHostPort(c *gin.Context, Host string, Port uint) (server_executor.ExecutorService, *SErr.APIErr) {
 	serverBasic, _, err := s.basicInfo(c, Host, Port)
 	if err != nil {
 		return nil, err
 	}
 	return s.openExecutorService(
-		&openExecutorServiceParam{
+		&server_executor.OpenExecutorServiceParam{
 			Host:             serverBasic.Host,
 			Port:             serverBasic.Port,
 			OSType:           serverBasic.OSType,
@@ -199,7 +208,7 @@ func (s *ServersService) openExecutorServiceByHostPort(c *gin.Context, Host stri
 		})
 }
 
-func (s *ServersService) loadInfoFromServer(targetServerInfo *internal_models.ServerInfo, es ExecutorService, arg *internal_models.LoadServerDetailArg) {
+func (s *ServersService) loadInfoFromServer(targetServerInfo *internal_models.ServerInfo, es server_executor.ExecutorService, arg *internal_models.LoadServerDetailArg) {
 	// 接下来，分别对LoadServerDetailArg中的每个可选项进行针对性的load
 	// 对WithAccountArg做load：
 	// 账户信息在MySQL中存储一份，但是不一定准确（因为Server可能随时被人修改）
@@ -228,7 +237,7 @@ func (s *ServersService) Infos(c *gin.Context, from, size uint, arg *internal_mo
 	var total uint
 	var err *SErr.APIErr
 	if keyword != nil && *keyword != "" {
-		servers, total, err = serverDal.SearchByHostAndAdmin(from, size, *keyword, arg.WithAccounts)
+		servers, total, err = serverDal.Search(from, size, *keyword, arg.WithAccounts)
 	} else {
 		servers, total, err = serverDal.List(from, size, arg.WithAccounts)
 	}
@@ -249,47 +258,31 @@ func (s *ServersService) Infos(c *gin.Context, from, size uint, arg *internal_mo
 				Accounts: accounts,
 			}
 			// 第二步，初始化到该服务器的连接，如果连接失败，则直接返回错误。
-			err := s.withConnectionByParam(c, &openExecutorServiceParam{
+			err := s.withConnectionByParam(c, &server_executor.OpenExecutorServiceParam{
 				Host:             serverBasic.Host,
 				Port:             serverBasic.Port,
 				OSType:           serverBasic.OSType,
 				AdminAccountName: serverBasic.AdminAccountName,
 				AdminAccountPwd:  serverBasic.AdminAccountPwd,
-			}, func(es ExecutorService) *SErr.APIErr {
+			}, func(es server_executor.ExecutorService) *SErr.APIErr {
 				s.loadInfoFromServer(serverInfo, es, arg)
 				mu.Lock()
 				defer mu.Unlock()
 				resultServerInfos = append(resultServerInfos, serverInfo)
 				return nil
 			})
-			//es, err := s.openExecutorService(&openExecutorServiceParam{
-			//	Host:             serverBasic.Host,
-			//	Port:             serverBasic.Port,
-			//	OSType:           serverBasic.OSType,
-			//	AdminAccountName: serverBasic.AdminAccountName,
-			//	AdminAccountPwd:  serverBasic.AdminAccountPwd,
-			//})
 			if err != nil {
 				serverInfo.AccessFailedInfo = &internal_models.ServerInfoLoadingFailedInfo{
 					CauseDescription: err.Message,
 				}
 			}
-			//} else {
-			//	defer func() {
-			//		_ = es.Close()
-			//	}()
-			//	s.loadInfoFromServer(serverInfo, es, arg)
-			//}
-			//mu.Lock()
-			//defer mu.Unlock()
-			//resultServerInfos = append(resultServerInfos, serverInfo)
 		})
 	}
 	wg.Wait()
 	return resultServerInfos, total, nil
 }
 
-func (s *ServersService) loadAccounts(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+func (s *ServersService) loadAccounts(es server_executor.ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
 	if arg.WithAccounts == false {
 		return
 	}
@@ -328,7 +321,7 @@ func (s *ServersService) loadAccounts(es ExecutorService, arg *internal_models.L
 	s.loadAccountBackupDirInfos(es, arg, serverInfo)
 }
 
-func (s *ServersService) combineDBAccounts(es ExecutorService, serverInfo *internal_models.ServerInfo, originalAccountsInServerMap map[string]*internal_models.ServerAccount) {
+func (s *ServersService) combineDBAccounts(es server_executor.ExecutorService, serverInfo *internal_models.ServerInfo, originalAccountsInServerMap map[string]*internal_models.ServerAccount) {
 	copiedMap := make(map[string]*internal_models.ServerAccount)
 	for acc, serverAcc := range originalAccountsInServerMap {
 		copiedMap[acc] = serverAcc
@@ -375,7 +368,7 @@ func (s *ServersService) combineDBAccounts(es ExecutorService, serverInfo *inter
 	}
 }
 
-func (s *ServersService) loadAccountBackupDirInfos(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+func (s *ServersService) loadAccountBackupDirInfos(es server_executor.ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
 	if !arg.WithBackupDirInfo {
 		return
 	}
@@ -407,7 +400,7 @@ func (s *ServersService) loadAccountBackupDirInfos(es ExecutorService, arg *inte
 }
 
 // loadHardwareInfo 加载硬件相关信息
-func (s *ServersService) loadHardwareInfo(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+func (s *ServersService) loadHardwareInfo(es server_executor.ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
 	if !arg.WithHardwareInfo {
 		return
 	}
@@ -448,7 +441,7 @@ func (s *ServersService) loadHardwareInfo(es ExecutorService, arg *internal_mode
 }
 
 // loadRemoteAccessUsages 加载正在远程访问该Server的用户使用信息。
-func (s *ServersService) loadRemoteAccessUsages(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+func (s *ServersService) loadRemoteAccessUsages(es server_executor.ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
 	if !arg.WithRemoteAccessUsages {
 		return
 	}
@@ -471,7 +464,7 @@ func (s *ServersService) loadRemoteAccessUsages(es ExecutorService, arg *interna
 }
 
 // loadGPUUsages 加载GPU的使用情况
-func (s *ServersService) loadGPUUsages(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+func (s *ServersService) loadGPUUsages(es server_executor.ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
 	if !arg.WithGPUUsages {
 		return
 	}
@@ -490,7 +483,7 @@ func (s *ServersService) loadGPUUsages(es ExecutorService, arg *internal_models.
 }
 
 // loadCPUMemProcessesUsageInfo 加载当前正在使用CPU，内存，以及进程的占用信息。
-func (s *ServersService) loadCPUMemProcessesUsageInfo(es ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
+func (s *ServersService) loadCPUMemProcessesUsageInfo(es server_executor.ExecutorService, arg *internal_models.LoadServerDetailArg, serverInfo *internal_models.ServerInfo) {
 	if !arg.WithCPUMemProcessesUsage {
 		return
 	}
@@ -514,6 +507,8 @@ func (s *ServersService) packServer(server *daModels.Server) *internal_models.Se
 		CreatedAt:        server.CreatedAt,
 		UpdatedAt:        server.UpdatedAt,
 		DeletedAt:        server.DeletedAt,
+		Name:             server.Name,
+		Description:      server.Description,
 		Host:             server.Host,
 		Port:             server.Port,
 		AdminAccountName: server.AdminAccountName,

@@ -7,7 +7,6 @@ import (
 	"ServerServing/util"
 	"errors"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"log"
 )
 
@@ -18,7 +17,8 @@ func GetServerDal() ServerDal {
 }
 
 func (s ServerDal) validServerInfo(server *daModels.Server) bool {
-	return server.Host != "" &&
+	return server.Name != "" &&
+		server.Host != "" &&
 		server.Port != 0 &&
 		len(server.Accounts) == 0 &&
 		server.AdminAccountName != "" &&
@@ -28,19 +28,39 @@ func (s ServerDal) validServerInfo(server *daModels.Server) bool {
 // Create 创建一个新的Server。
 func (s ServerDal) Create(server *daModels.Server) *SErr.APIErr {
 	if !s.validServerInfo(server) {
-		return SErr.InternalErr.CustomMessageF("创建Server的数据不合法！Server=[%v]", util.Pretty(server))
+		return SErr.InvalidParamErr.CustomMessageF("创建Server的数据不合法！Server=[%v]", util.Pretty(server))
 	}
 	db := mysql.GetDB()
-	res := db.Model(&daModels.Server{}).Clauses(clause.OnConflict{
-		UpdateAll: true,
-	}).Create(server)
-	if res.Error != nil {
-		return SErr.InternalErr
-	}
-	if res.RowsAffected == 0 {
-		return SErr.InvalidParamErr.CustomMessageF("该Server Host=[%s] Port=[%d] 已存在，请检查参数！", server.Host, server.Port)
-	}
-	return nil
+	var sErr *SErr.APIErr
+	_ = db.Transaction(func(tx *gorm.DB) error {
+		tmpServer := &daModels.Server{}
+		res := tx.Model(&daModels.Server{}).Where("Host = ? and Port = ? or Name = ?", server.Host, server.Port, server.Name).First(tmpServer)
+		if !errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			if res.Error != nil {
+				sErr = SErr.InternalErr.CustomMessageF("创建服务器时，查询已有信息出错！数据库出错=[%v]", res.Error)
+				return res.Error
+			}
+			// 查找到了已有的Host和Port的数据。返回错误。
+			if tmpServer.Host == server.Host && tmpServer.Port == server.Port {
+				sErr = SErr.InvalidParamErr.CustomMessage("该服务器的Host与Port已存在！")
+				return errors.New("重复的服务器Host与Port")
+			}
+			if tmpServer.Name == server.Name {
+				sErr = SErr.InvalidParamErr.CustomMessage("该服务器名称已存在！")
+				return errors.New("重复的服务器名称")
+			}
+		}
+		res = db.Model(&daModels.Server{}).Create(server)
+		if res.Error != nil {
+			sErr = SErr.InternalErr.CustomMessageF("创建服务器失败！出错信息=[%v]", res.Error)
+			return res.Error
+		}
+		return nil
+	})
+	//res := db.Model(&daModels.Server{}).Clauses(clause.OnConflict{
+	//	UpdateAll: true,
+	//}).Create(server)
+	return sErr
 }
 
 // Delete 删除一个服务器。
@@ -112,14 +132,15 @@ func (s ServerDal) List(from, size uint, withAccounts bool) ([]*daModels.Server,
 	return servers, uint(count), nil
 }
 
-// SearchByHostAndAdmin 指定一个keyword，同时针对Host和Admin做搜索。
-func (s ServerDal) SearchByHostAndAdmin(from, size uint, keyword string, withAccounts bool) ([]*daModels.Server, uint, *SErr.APIErr) {
-	log.Printf("Servers SearchByHostAndAdmin, keyword=[%s], from=[%d], size=[%d], withAccounts=[%v]", keyword, from, size, withAccounts)
+// Search 指定一个keyword，同时针对Host和Admin做搜索。
+func (s ServerDal) Search(from, size uint, keyword string, withAccounts bool) ([]*daModels.Server, uint, *SErr.APIErr) {
+	log.Printf("Servers Search, keyword=[%s], from=[%d], size=[%d], withAccounts=[%v]", keyword, from, size, withAccounts)
 	var servers []*daModels.Server
 	var count int64
 	db := mysql.GetDB()
-	query := "Host LIKE ? or admin_account_name LIKE ?"
-	args := []interface{}{"%" + keyword + "%", "%" + keyword + "%"}
+	query := "Name LIKE ? or Host LIKE ? or admin_account_name LIKE ?"
+	likeParam := "%" + keyword + "%"
+	args := []interface{}{likeParam, likeParam, likeParam}
 	res := db.Model(&daModels.Server{}).Where(query, args...).Count(&count)
 	if res.Error != nil {
 		return nil, 0, SErr.InternalErr.CustomMessageF("搜索Server时，查询总长度失败！出错信息为：[%s]", res.Error.Error())
@@ -140,17 +161,26 @@ func (s ServerDal) SearchByHostAndAdmin(from, size uint, keyword string, withAcc
 
 // Update 更新数据库信息，无法保证更新的目标是否相同。可以在上层通过redis做分布式锁做并发更新保障。（在mysql做并发控制需要使用事务，代价比较高）
 func (s ServerDal) Update(Host string, Port uint, server *daModels.Server) *SErr.APIErr {
-	if !s.validServerInfo(server) {
-		return SErr.InvalidParamErr.CustomMessageF("更新Server数据时，参数不合法！参数为：[%s]", util.Pretty(server))
-	}
 	db := mysql.GetDB()
-	res := db.Model(&daModels.Server{}).Where(&daModels.Server{Host: Host, Port: Port}).First(server)
-	if errors.Is(res.Error, gorm.ErrRecordNotFound) {
-		return SErr.InvalidParamErr.CustomMessageF("更新Server数据时，更新的目标数据不存在！目标Server信息为：Host=[%s], Port=[%d]", Host, Port)
-	}
-	res = db.Model(&daModels.Server{}).Where(&daModels.Server{Host: Host, Port: Port}).Updates(server)
-	if res.Error != nil {
-		return SErr.InternalErr.CustomMessageF("更新Server数据出错，出错信息为：[%s]", res.Error.Error())
-	}
-	return nil
+	var sErr *SErr.APIErr
+	_ = db.Transaction(func(tx *gorm.DB) error {
+		tmpServer := &daModels.Server{}
+		res := db.Model(&daModels.Server{}).Where(&daModels.Server{Host: Host, Port: Port}).First(tmpServer)
+		if errors.Is(res.Error, gorm.ErrRecordNotFound) {
+			sErr = SErr.InvalidParamErr.CustomMessageF("更新Server数据时，更新的目标的服务器[%s]，Port=[%d]不存在！", Host, Port)
+			return res.Error
+		}
+		res = db.Model(&daModels.Server{}).Where(&daModels.Server{Name: server.Name}).First(tmpServer)
+		if !errors.Is(res.Error, gorm.ErrRecordNotFound) && res.Error == nil {
+			sErr = SErr.InvalidParamErr.CustomMessage("更新Server数据时，服务器名称重复！")
+			return errors.New("服务器名称重复")
+		}
+		res = db.Model(&daModels.Server{}).Where(&daModels.Server{Host: Host, Port: Port}).Select("name", "description", "admin_account_name", "admin_account_pwd").Updates(server)
+		if res.Error != nil {
+			sErr = SErr.InternalErr.CustomMessageF("更新Server数据出错，出错信息为：[%s]", res.Error.Error())
+			return res.Error
+		}
+		return nil
+	})
+	return sErr
 }

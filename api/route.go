@@ -38,6 +38,7 @@ func Register(r *gin.Engine) {
 	serversRouter.POST("", format.Wrap(serversAPI.create()))
 	serversRouter.DELETE("", format.Wrap(serversAPI.delete()))
 	serversRouter.GET(":host/:port", format.Wrap(serversAPI.info()))
+	serversRouter.PUT(":host/:port", format.Wrap(serversAPI.update()))
 	serversRouter.GET("", format.Wrap(serversAPI.infos()))
 	serversRouter.GET("connections/:host/:port", format.Wrap(serversAPI.connectionTest()))
 
@@ -121,6 +122,12 @@ type serversAPI struct{}
 func (serversAPI) create() format.JSONHandler {
 	return func(c *gin.Context) (interface{}, *err.APIErr) {
 		return handler.GetServerHandler().Create(c)
+	}
+}
+
+func (serversAPI) update() format.JSONHandler {
+	return func(c *gin.Context) (interface{}, *err.APIErr) {
+		return handler.GetServerHandler().Update(c)
 	}
 }
 

@@ -65,6 +65,7 @@ func (ServerAccountsHandler) BackupDirInfo(c *gin.Context) (interface{}, *SErr.A
 // @Produce json
 // @Router /api/v1/servers/accounts [delete]
 // @Param serverAccountDeleteRequest body internal_models.ServerAccountDeleteRequest true "serverAccountDeleteRequest"
+// @Param x-token header string false "x-token"
 // @Success 200 {object} internal_models.ServerAccountDeleteResponse
 func (ServerAccountsHandler) Delete(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.ServerAccountDeleteRequest{}

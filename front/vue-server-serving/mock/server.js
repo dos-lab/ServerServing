@@ -58,10 +58,12 @@ const newMockServer = function() {
       created_at: +Mock.Random.date('T'),
       updated_at: +Mock.Random.date('T'),
       deleted_at: +Mock.Random.date('T'),
+      name: '@first',
+      description: '@string(10, 50)',
       host: '@ip',
       port: '@integer(22, 50)',
       admin_account_name: '@first',
-      admin_account_pwd: "@string('lower')",
+      admin_account_pwd: '@string(6, 10)',
       os_type: 'os_type_linux'
     },
     access_failed_info: access_failed_info,
@@ -406,16 +408,8 @@ module.exports = [
     url: '/api/v1/servers/([0-9.]+)/([0-9]+)',
     type: 'get',
     response: config => {
-      // console.log('get server, config', config)
       const host = config.params[0]
       const port = +config.params[1]
-      // const {
-      //   with_accounts,
-      //   with_cmp_usages,
-      //   with_gpu_usages,
-      //   with_hardware_info,
-      //   with_remote_access_usages
-      // } = config.query
       for (const server of List) {
         if (server.basic.host === host && server.basic.port === port) {
           let copied = Object.assign({}, server)
@@ -426,6 +420,42 @@ module.exports = [
             data: copied
           }
         }
+      }
+      return {
+        code: 20001,
+        message: '服务器不存在',
+        data: {}
+      }
+    }
+  },
+  {
+    url: '/api/v1/servers/([0-9.]+)/([0-9]+)',
+    type: 'put',
+    response: config => {
+      const host = config.params[0]
+      const port = +config.params[1]
+      const { name, description, admin_account_name, admin_account_pwd } = config.body
+      console.log('update server, host, port, request body, name, description, admin_account_name, admin_account_pwd',
+        host, port, name, description, admin_account_name, admin_account_pwd)
+      for (const server of List) {
+        // console.log(`server.basic.host=[${server.basic.host}], server.basic.port=[${server.basic.port}], host=[${host}], port=[${port}]`)
+        if (server.basic.host === host && server.basic.port === port) {
+          console.log('update server executed.')
+          server.basic.admin_account_name = admin_account_name
+          server.basic.admin_account_pwd = admin_account_pwd
+          server.basic.name = name
+          server.basic.description = description
+          return {
+            code: 20000,
+            message: 'success',
+            data: {}
+          }
+        }
+      }
+      return {
+        code: 20001,
+        message: '服务器不存在！',
+        data: {}
       }
     }
   },

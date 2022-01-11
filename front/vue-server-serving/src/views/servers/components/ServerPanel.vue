@@ -3,14 +3,37 @@
     <el-main>
       <el-row type="flex" align="middle" justify="space-between">
         <el-col :span="12">
-          <div style="font-size: 24px">
-            IP: {{ server.basic ? server.basic.host : '未知' }} 端口：{{ server.basic ? server.basic.port : '未知' }}
+          <div class="panel-header">
+            <div>
+              名称：
+            </div>
+            <el-popover
+              placement="top-start"
+              title="描述信息"
+              width="200"
+              trigger="hover"
+              :content="server.basic ? server.basic.description : '未知'"
+              style="display: inline-flex; align-items: center; margin-left: 0"
+            >
+              <el-button slot="reference">
+                {{ server.basic ? server.basic.name : '未知' }}
+              </el-button>
+            </el-popover>
+            <div style="margin-left: 20px">
+              IP：{{ server.basic ? server.basic.host : '未知' }}
+            </div>
+            <div style="margin-left: 20px">
+              端口：{{ server.basic ? server.basic.port : '未知' }}
+            </div>
           </div>
         </el-col>
         <el-col :span="6">
           <div style="display:flex; align-items: center; justify-content: end">
-            <el-button style="margin-left: 10px" type="primary" @click="handleOriginalServerJsonButton">
+            <el-button type="primary" @click="handleOriginalServerJsonButton">
               查看服务器原始json数据
+            </el-button>
+            <el-button style="margin-left: 10px" type="warning" @click="handleServerUpdateButton">
+              编辑服务器
             </el-button>
             <el-popover
               v-model="deleteServerPopupVisible"
@@ -57,9 +80,12 @@
       <el-row :gutter="8" style="margin-top: 20px">
         <el-col :span="12">
           <el-container v-loading="hardwareInfoLoading">
-            <el-header style="height: 50px;">
-              <div class="el-header" style="font-size: 24px;">
-                硬件信息
+            <el-header class="el-header-container">
+              <div class="el-header elHeaderWithOriginalOutput">
+                <div style="margin-left: 0">
+                  硬件信息
+                </div>
+                <el-button icon="el-icon-refresh" circle size="small" @click="refresh_server_with_auto_refresh_paused({with_hardware_info: true}, 'hardwareInfoLoading')" />
               </div>
             </el-header>
             <el-row>
@@ -69,7 +95,7 @@
                   :data="hardwareTableData"
                   fit
                   highlight-current-row
-                  max-height="500"
+                  :max-height="tableMaxHeight"
                   style="width: 100%;"
                 >
                   <el-table-column label="硬件名" align="center" width="180">
@@ -93,14 +119,13 @@
 
         <el-col :span="12">
           <el-container v-loading="cmpLoading">
-            <el-header style="height: 50px;">
+            <el-header class="el-header-container">
               <div class="el-header elHeaderWithOriginalOutput">
-                <div>
+                <div style="margin-left: 0">
                   硬件使用
                 </div>
-                <el-button icon="el-icon-refresh" circle style="margin-left: 10px" size="small" @click="refresh_server_with_auto_refresh_paused({with_cmp_usages: true}, 'cmpLoading')">
-                </el-button>
-                <el-button size="small" style="margin-left: 10px" @click="showOriginalOutput(server.cpu_mem_processes_usage_info)">
+                <el-button icon="el-icon-refresh" circle size="small" @click="refresh_server_with_auto_refresh_paused({with_cmp_usages: true}, 'cmpLoading')" />
+                <el-button size="small" @click="showOriginalOutput(server.cpu_mem_processes_usage_info)">
                   原始输出
                 </el-button>
               </div>
@@ -112,7 +137,7 @@
                   :data="hardwareUsageTableData"
                   fit
                   highlight-current-row
-                  max-height="500"
+                  :max-height="tableMaxHeight"
                   style="width: 100%;"
                 >
                   <el-table-column label="硬件名" align="center" width="180">
@@ -136,17 +161,16 @@
       <el-row :gutter="8" style="margin-top: 20px">
         <el-col :span="12">
           <el-container v-loading="accountsLoading">
-            <el-header style="height: 50px;">
+            <el-header class="el-header-container">
               <div class="el-header elHeaderWithOriginalOutput">
-                <div>
+                <div style="margin-left: 0;">
                   账户信息
                 </div>
-                <el-button icon="el-icon-refresh" circle style="margin-left: 10px" size="small" @click="refresh_server_with_auto_refresh_paused({with_accounts: true}, 'accountsLoading')">
-                </el-button>
-                <el-button size="small" style="margin-left: 10px" @click="showOriginalOutput(server.account_infos)">
+                <el-button icon="el-icon-refresh" circle size="small" @click="refresh_server_with_auto_refresh_paused({with_accounts: true}, 'accountsLoading')" />
+                <el-button size="small" @click="showOriginalOutput(server.account_infos)">
                   原始输出
                 </el-button>
-                <el-button size="small" style="margin-left: 10px" type="primary" @click="handleCreateAccountButton">
+                <el-button size="small" type="primary" @click="handleCreateAccountButton">
                   创建账户
                 </el-button>
               </div>
@@ -158,11 +182,10 @@
                 :data="server.account_infos ? server.account_infos.accounts : null"
                 fit
                 highlight-current-row
-                max-height="500"
+                :max-height="tableMaxHeight"
                 style="width: 100%;"
               >
-                <el-table-column label="序号" type="index" align="center">
-                </el-table-column>
+                <el-table-column label="序号" type="index" align="center" />
                 <el-table-column label="账户" min-width="100px" align="center">
                   <template slot-scope="{row}">
                     <span v-if="row.not_exists_in_server">
@@ -205,14 +228,13 @@
         </el-col>
         <el-col :span="12">
           <el-container v-loading="cmpLoading">
-            <el-header style="height: 50px;">
+            <el-header class="el-header-container">
               <div class="el-header elHeaderWithOriginalOutput">
                 <div>
                   进程信息
                 </div>
-                <el-button icon="el-icon-refresh" circle style="margin-left: 10px" size="small" @click="refresh_server_with_auto_refresh_paused({with_cmp_usages: true}, 'cmpLoading')">
-                </el-button>
-                <el-button size="small" style="margin-left: 10px" @click="showOriginalOutput(server.cpu_mem_processes_usage_info)">
+                <el-button icon="el-icon-refresh" circle size="small" @click="refresh_server_with_auto_refresh_paused({with_cmp_usages: true}, 'cmpLoading')" />
+                <el-button size="small" @click="showOriginalOutput(server.cpu_mem_processes_usage_info)">
                   原始输出
                 </el-button>
               </div>
@@ -223,7 +245,7 @@
                 :data="server.cpu_mem_processes_usage_info && !server.cpu_mem_processes_usage_info.failed_info ? server.cpu_mem_processes_usage_info.process_infos : null"
                 fit
                 highlight-current-row
-                max-height="500"
+                :max-height="tableMaxHeight"
                 style="width: 100%;"
               >
                 <el-table-column label="pid" align="center">
@@ -262,14 +284,13 @@
       <el-row :gutter="8" style="margin-top: 20px">
         <el-col :span="12">
           <el-container v-loading="remoteAccessingUsageLoading">
-            <el-header style="height: 50px;">
+            <el-header class="el-header-container">
               <div class="el-header elHeaderWithOriginalOutput">
-                <div>
+                <div style="margin-left: 0">
                   正在远程登录这台服务器的账户
                 </div>
-                <el-button icon="el-icon-refresh" circle style="margin-left: 10px" size="small" @click="refresh_server_with_auto_refresh_paused({with_remote_access_usages: true}, 'remoteAccessingUsageLoading')">
-                </el-button>
-                <el-button size="small" style="margin-left: 10px" @click="showOriginalOutput(server.remote_accessing_usage_info)">
+                <el-button icon="el-icon-refresh" circle size="small" @click="refresh_server_with_auto_refresh_paused({with_remote_access_usages: true}, 'remoteAccessingUsageLoading')" />
+                <el-button size="small" @click="showOriginalOutput(server.remote_accessing_usage_info)">
                   原始输出
                 </el-button>
               </div>
@@ -280,7 +301,7 @@
                 :data="server.remote_accessing_usage_info && !server.remote_accessing_usage_info.failed_info ? server.remote_accessing_usage_info.infos : null"
                 fit
                 highlight-current-row
-                max-height="500"
+                :max-height="tableMaxHeight"
                 style="width: 100%;"
               >
                 <el-table-column label="账户" width="300" align="center">
@@ -299,13 +320,12 @@
         </el-col>
         <el-col :span="12">
           <el-container v-loading="gpuUsageLoading">
-            <el-header style="height: 50px;">
+            <el-header class="el-header-container">
               <div class="el-header elHeaderWithOriginalOutput">
                 <div>
                   GPU使用信息
                 </div>
-                <el-button icon="el-icon-refresh" circle style="margin-left: 10px" size="small" @click="refresh_server_with_auto_refresh_paused({with_gpu_usages: true}, 'gpuUsageLoading')">
-                </el-button>
+                <el-button icon="el-icon-refresh" circle size="small" @click="refresh_server_with_auto_refresh_paused({with_gpu_usages: true}, 'gpuUsageLoading')" />
               </div>
             </el-header>
             <el-main style="padding-top: 0">
@@ -325,7 +345,8 @@
           <el-switch
             v-model="deleteAccountModel.do_backup"
             :disabled="!isAble2deleteAccountWithBackup.able"
-            active-text="备份用户文件夹"/>
+            active-text="备份用户文件夹"
+          />
           <div v-if="isAble2deleteAccountWithBackup.able">
             备份至文件夹：{{ isAble2deleteAccountWithBackup.targetDir }}
           </div>
@@ -353,7 +374,8 @@
           <el-switch
             v-model="recoverAccountModel.do_backup"
             :disabled="!isAble2recoverAccountWithBackup.able"
-            active-text="恢复备份用户文件夹"/>
+            active-text="恢复备份用户文件夹"
+          />
           <div v-if="isAble2recoverAccountWithBackup.able">
             恢复备份文件夹：{{ isAble2recoverAccountWithBackup.targetDir }}
           </div>
@@ -397,8 +419,38 @@
         v-model="originalOutputText"
         type="textarea"
         :class="originalOutputClass"
-        :rows="20">
-      </el-input>
+        :rows="20"
+      />
+    </el-dialog>
+
+    <el-dialog title="编辑服务器" :visible.sync="serverUpdateFormVisible" style="padding-bottom: 200px">
+      <el-form ref="updateServerDataForm" label-position="top" :rules="serverUpdateRules" :model="serverUpdateModel" style="width: 80%; margin-left:50px;">
+        <el-form-item label="服务器名称" prop="name">
+          <el-input v-model="serverUpdateModel.name" />
+        </el-form-item>
+        <el-form-item label="服务器描述" prop="description">
+          <el-input
+            v-model="serverUpdateModel.description"
+            type="textarea"
+            autosize
+            placeholder="请输入内容"
+          />
+        </el-form-item>
+        <el-form-item label="管理员账户（服务器使用该账户通信）" prop="admin_account_name">
+          <el-input v-model="serverUpdateModel.admin_account_name" />
+        </el-form-item>
+        <el-form-item label="管理员账户密码" prop="admin_account_pwd">
+          <el-input v-model="serverUpdateModel.admin_account_pwd" />
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button :loading="serverUpdateConnectionTestLoading" @click="handleUpdateServerConnectionTest">
+          测试连通性
+        </el-button>
+        <el-button type="primary" :loading="serverUpdateConfirmLoading" @click="handleUpdateServerConfirm">
+          更新
+        </el-button>
+      </div>
     </el-dialog>
   </el-container>
 </template>
@@ -406,7 +458,16 @@
 <script>
 
 // import Mock from 'mockjs'
-import { getInfo, deleteServer, createAccount, deleteAccount, recoverAccount, backupDirInfo } from '@/api/server'
+import {
+  getInfo,
+  deleteServer,
+  createAccount,
+  deleteAccount,
+  recoverAccount,
+  backupDirInfo,
+  connectionTest,
+  updateServer
+} from '@/api/server'
 import JsonEditor from '@/components/JsonEditor'
 
 const autoRefreshLabels2Attr = {
@@ -448,6 +509,7 @@ export default {
       }
     }
     return {
+      tableMaxHeight: 500,
       panelLoading: false,
       hardwareInfoLoading: false,
       cmpLoading: false,
@@ -487,11 +549,10 @@ export default {
       deleteServerPopupVisible: false,
       serverDeleting: false,
       serverUpdateModel: {
-        host: '0.0.0.0',
-        port: 22,
+        name: '',
+        description: '',
         admin_account_name: '',
-        admin_account_pwd: '',
-        os_type_label: 'linux'
+        admin_account_pwd: ''
       },
       serverUpdateRules: {
         admin_account_name: [
@@ -558,7 +619,7 @@ export default {
         return data
       }
       const cpu_info = this.server.hardware_info.cpu_hardware_info.info
-      let cpu_description = ''
+      let cpu_description
 
       if (!this.server.hardware_info.cpu_hardware_info.failed_info) {
         cpu_description = `架构：${cpu_info.architecture} <br> 类型：${cpu_info.model_name} <br> 核心数：${cpu_info.cores} <br> 每核心线程：${cpu_info.threads_per_core}`
@@ -994,49 +1055,83 @@ export default {
       this.originalOutputTitle = '原始输出'
       this.originalOutputText = infoObj.output
       this.originalOutputDialogVisible = true
+    },
+    handleServerUpdateButton() {
+      if (!this.server || this.server && this.server.basic === null) {
+        this.$message.warning('当前服务器信息未知！')
+        return
+      }
+      this.serverUpdateModel = {
+        name: '',
+        description: '',
+        admin_account_name: '',
+        admin_account_pwd: ''
+      }
+      if (this.server && this.server.basic) {
+        this.serverUpdateModel = {
+          name: this.server.basic.name,
+          description: this.server.basic.description,
+          admin_account_name: this.server.basic.admin_account_name,
+          admin_account_pwd: this.server.basic.admin_account_pwd
+        }
+      }
+      this.serverUpdateFormVisible = true
+    },
+    handleUpdateServerConnectionTest() {
+      this.$refs['updateServerDataForm'].validate((valid) => {
+        console.log('handleUpdateServerConnectionTest, valid, this.serverUpdateModel', valid, this.serverUpdateModel)
+        if (!valid) {
+          return
+        }
+        this.serverUpdateConnectionTestLoading = true
+        return connectionTest(this.server.basic.host, this.server.basic.port, {
+          os_type: this.server.basic.os_type,
+          admin_account_name: this.serverUpdateModel.admin_account_name,
+          admin_account_pwd: this.serverUpdateModel.admin_account_pwd
+        }).then((res) => {
+          console.log('handleUpdateServerConnectionTest response', res)
+          if (res.data.connected === true) {
+            this.$message.success('连接成功！')
+          } else {
+            this.$message.error('连接失败！')
+          }
+        }).finally(() => {
+          this.serverUpdateConnectionTestLoading = false
+        })
+      })
+    },
+    handleUpdateServerConfirm() {
+      this.$refs['updateServerDataForm'].validate((valid) => {
+        console.log('handleUpdateServerConfirm, valid', valid, this.serverUpdateModel)
+        if (!valid) {
+          return
+        }
+        if ((this.serverUpdateModel.name === this.server.basic.name) &&
+        this.serverUpdateModel.description === this.server.basic.description &&
+        this.serverUpdateModel.admin_account_name === this.server.basic.admin_account_name &&
+        this.serverUpdateModel.admin_account_pwd === this.server.basic.admin_account_pwd) {
+          this.$message.warning('没有数据发生变化！')
+          return
+        }
+        this.serverUpdateConfirmLoading = true
+        const _this = this
+        return updateServer(
+          _this.server.basic.host,
+          _this.server.basic.port,
+          _this.serverUpdateModel.name,
+          _this.serverUpdateModel.description,
+          _this.serverUpdateModel.admin_account_name,
+          _this.serverUpdateModel.admin_account_pwd).then(() => {
+          _this.$message.success('更新成功！')
+          _this.refresh_server_with_auto_refresh_paused(_this.refreshAllOpts, 'panelLoading')
+          _this.serverUpdateFormVisible = false
+        }).catch(err => {
+          console.log('handleRegisterServerConfirm createServer err', err)
+        }).finally(() => {
+          _this.serverUpdateConfirmLoading = false
+        })
+      })
     }
-    // handleServerUpdateButton() {
-    //   this.serverUpdateModel = {
-    //     host: this.server.basic.host,
-    //     port: this.server.basic.port,
-    //     admin_account_name: this.server.basic.admin_account_name,
-    //     admin_account_pwd: this.server.basic.admin_account_pwd,
-    //     os_type: this.server.basic.os_type
-    //   }
-    //   this.serverUpdateFormVisible = true
-    // }
-    // handleUpdateServerConnectionTest() {
-    //   this.$refs['dataForm'].validate((valid) => {
-    //     console.log('handleUpdateServerConnectionTest, valid, this.temp', valid, this.serverUpdateModel)
-    //     if (!valid) {
-    //       return
-    //     }
-    //     this.serverUpdateConnectionTestLoading = true
-    //     return connectionTest(this.server.basic.host, this.server.basic.port, {
-    //       os_type: this.server.basic.os_type,
-    //       admin_account_name: this.serverUpdateModel.admin_account_name,
-    //       admin_account_pwd: this.serverUpdateModel.admin_account_pwd
-    //     }).then((res) => {
-    //       console.log('handleUpdateServerConnectionTest response', res)
-    //       if (res.data.connected === true) {
-    //         this.$message.success('连接成功！')
-    //       } else {
-    //         this.$message.error('连接失败！')
-    //       }
-    //     }).finally(() => {
-    //       this.serverUpdateConnectionTestLoading = false
-    //     })
-    //   })
-    // },
-    // handleUpdateServerConfirm() {
-    //   this.$refs['dataForm'].validate((valid) => {
-    //     console.log('handleUpdateServerConfirm, valid, this.temp', valid, this.serverUpdateModel)
-    //     if (!valid) {
-    //       return
-    //     }
-    //
-    //   }
-    // }
   }
 }
 </script>
@@ -1119,5 +1214,32 @@ export default {
   display: flex;
   align-items: center;
   justify-content: start;
+}
+
+.elHeaderWithOriginalOutput > * {
+  margin-left: 10px;
+}
+
+.elHeaderWithOriginalOutput:first-child {
+  margin-left: 0;
+}
+
+.el-header-container {
+  height: 50px;
+}
+
+.panel-header {
+  font-size: 24px;
+  display: inline-flex;
+  justify-content: start;
+  align-items: center;
+}
+
+.panel-header > * {
+  margin-left: 20px;
+}
+
+.panel-header:first-child {
+  margin-left: 0;
 }
 </style>

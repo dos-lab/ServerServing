@@ -3,7 +3,6 @@ module ServerServing
 go 1.17
 
 require (
-	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/sessions v0.0.4
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-redis/redis/v8 v8.11.4
@@ -11,6 +10,7 @@ require (
 	github.com/melbahja/goph v1.3.0
 	github.com/swaggo/gin-swagger v1.3.3
 	github.com/swaggo/swag v1.7.4
+	github.com/tredoe/osutil/v2 v2.0.0-rc.16
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/mysql v1.2.0

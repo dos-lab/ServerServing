@@ -25,12 +25,10 @@ func GetServerHandler() *ServerHandler {
 // @param port path uint true "port"
 // @Param serverConnectionTestRequest query internal_models.ServerConnectionTestRequest true "serverConnectionTestRequest"
 // @Success 200 {object} internal_models.ServerConnectionTestResponse
-func (ServerHandler) ConnectionTest(c *gin.Context) (interface{}, *SErr.APIErr) {
-	host := c.Param("host")
-	portStr := c.Param("port")
-	port, err := util.ParseInt(portStr)
-	if err != nil || port <= 0 {
-		return nil, SErr.BadRequestErr.CustomMessageF("请求的Port不为整数！或者Port <= 0")
+func (s ServerHandler) ConnectionTest(c *gin.Context) (interface{}, *SErr.APIErr) {
+	host, port, err := s.parseHostPort(c)
+	if err != nil {
+		return nil, err
 	}
 	req := &models.ServerConnectionTestRequest{}
 	reqStr, _ := json.Marshal(req)
@@ -51,12 +49,23 @@ func (ServerHandler) ConnectionTest(c *gin.Context) (interface{}, *SErr.APIErr) 
 	return &models.ServerConnectionTestResponse{Connected: true}, nil
 }
 
+func (ServerHandler) parseHostPort(c *gin.Context) (string, uint, *SErr.APIErr) {
+	host := c.Param("host")
+	portStr := c.Param("port")
+	port, err := util.ParseInt(portStr)
+	if err != nil || port <= 0 {
+		return "", 0, SErr.BadRequestErr.CustomMessageF("请求的Port不为整数！或者Port <= 0")
+	}
+	return host, uint(port), nil
+}
+
 // Create
 // @Summary 创建server。
 // @Tags server
 // @Produce json
 // @Router /api/v1/servers/ [post]
 // @Param serverCreateRequest body internal_models.ServerCreateRequest true "serverCreateRequest"
+// @Param x-token header string false "x-token"
 // @Success 200 {object} internal_models.ServerCreateResponse
 func (ServerHandler) Create(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.ServerCreateRequest{}
@@ -72,7 +81,43 @@ func (ServerHandler) Create(c *gin.Context) (interface{}, *SErr.APIErr) {
 	}
 
 	serversSvc := service.GetServersService()
-	err = serversSvc.Create(c, req.Host, req.Port, req.OSType, req.AdminAccountName, req.AdminAccountPwd)
+	err = serversSvc.Create(c, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.ServerCreateResponse{}, nil
+}
+
+// Update
+// @Summary 更新服务器数据
+// @Tags server
+// @Produce json
+// @Router /api/v1/servers/{host}/{port} [put]
+// @param host path string true "host"
+// @param port path uint true "port"
+// @Param serverUpdateRequest body internal_models.ServerUpdateRequest true "serverUpdateRequest"
+// @Param x-token header string false "x-token"
+// @Success 200 {object} internal_models.ServerUpdateResponse
+func (s ServerHandler) Update(c *gin.Context) (interface{}, *SErr.APIErr) {
+	req := &models.ServerUpdateRequest{}
+	e := c.ShouldBind(req)
+	if e != nil {
+		return nil, SErr.BadRequestErr
+	}
+	host, port, err := s.parseHostPort(c)
+	if err != nil {
+		return nil, err
+	}
+
+	sessionsSvc := service.GetSessionsService()
+	_, err = sessionsSvc.LoggedInAndIsAdmin(c)
+	if err != nil {
+		return nil, err
+	}
+
+	serversSvc := service.GetServersService()
+	err = serversSvc.Update(c, host, port, req)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +131,7 @@ func (ServerHandler) Create(c *gin.Context) (interface{}, *SErr.APIErr) {
 // @Produce json
 // @Router /api/v1/servers/ [delete]
 // @Param serverDeleteRequest body internal_models.ServerDeleteRequest true "serverDeleteRequest"
+// @Param x-token header string false "x-token"
 // @Success 200 {object} internal_models.ServerDeleteResponse
 func (ServerHandler) Delete(c *gin.Context) (interface{}, *SErr.APIErr) {
 	req := &models.ServerDeleteRequest{}

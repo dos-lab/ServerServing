@@ -4,12 +4,12 @@
       <el-main>
         <el-row type="flex" align="middle" :gutter="8">
           <el-col :span="12">
-            <div style="display: flex; align-items: center; justify-content: left">
-              <el-input v-model="listQuery.searchKeyword" placeholder="关键词" style="width: 200px;" class="filter-item" @keyup.enter.native="handleFilter" />
-              <el-button v-waves style="margin-left: 20px" class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">
+            <div style="" class="search-container">
+              <el-input v-model="listQuery.searchKeyword" placeholder="关键词" style="width: 200px; margin-left: 0" class="filter-item" @keyup.enter.native="handleFilter" />
+              <el-button v-waves class="filter-item" type="primary" icon="el-icon-search" @click="handleFilter">
                 搜索
               </el-button>
-              <el-button v-waves v-permission="['admin']" style="margin-left: 20px" type="primary" @click="handleRegisterServerButtonClick">
+              <el-button v-waves v-permission="['admin']" type="primary" @click="handleRegisterServerButtonClick">
                 注册服务器
               </el-button>
             </div>
@@ -27,26 +27,26 @@
                 <keep-alive>
                   <el-collapse-item :name="genCollapseName(server)" class="servers-collapse-item" style="border-bottom: 1px solid #EEEEEE;box-sizing: border-box;">
                     <span slot="title" class="servers-collapse-title">
+                      <div style="min-width: 200px; margin-left: 20px;">
+                        名称：{{ server.basic.name }}
+                      </div>
                       <div style="min-width: 20px; margin-left: 20px;">
-                        IP:
+                        IP：
                       </div>
                       <div class="link-type" style="min-width: 100px;">
                         {{ server.basic.host }}
                       </div>
-                      <div style="min-width: 40px; margin-left: 20px;">
-                        Port:
-                      </div>
-                      <div style="min-width: 100px;">
-                        {{ server.basic.port }}
-                      </div>
-                      <div style="min-width: 300px;">
-                        管理员账户: {{ server.basic.admin_account_name }}
-                      </div>
-                      <div style="min-width: 250px;">
-                        CPU(%): {{ extractCPUMemUsage(server, 'user_cpu_usage') }}
+                      <div style="min-width: 100px; margin-left: 20px;">
+                        Port：{{ server.basic.port }}
                       </div>
                       <div style="min-width: 200px;">
-                        Memory(%): {{ `${extractCPUMemUsage(server, 'mem_usage')} (${extractCPUMemUsage(server, 'mem_total')})` || '未知' }}
+                        管理员账户：{{ server.basic.admin_account_name }}
+                      </div>
+                      <div style="min-width: 150px;">
+                        CPU(%)：{{ extractCPUMemUsage(server, 'user_cpu_usage') || '未知' }}
+                      </div>
+                      <div style="min-width: 200px;">
+                        Memory(%)：{{ `${extractCPUMemUsage(server, 'mem_usage')} (${extractCPUMemUsage(server, 'mem_total')})` || '未知' }}
                       </div>
                     </span>
                     <div style="margin-left: 20px">
@@ -63,8 +63,19 @@
       </el-main>
     </el-container>
 
-    <el-dialog title="注册服务器" :visible.sync="registerServerFormVisible">
+    <el-dialog title="注册服务器" :visible.sync="registerServerFormVisible" style="padding-bottom: 200px">
       <el-form ref="dataForm" label-position="top" :rules="rules" :model="registerServerModel" style="width: 80%; margin-left:50px;">
+        <el-form-item label="服务器名称" prop="name">
+          <el-input v-model="registerServerModel.name" />
+        </el-form-item>
+        <el-form-item label="服务器描述" prop="description">
+          <el-input
+            v-model="registerServerModel.description"
+            type="textarea"
+            autosize
+            placeholder="请输入内容"
+          />
+        </el-form-item>
         <el-form-item label="服务器ip地址" prop="host">
           <el-input v-model="registerServerModel.host" />
         </el-form-item>
@@ -134,6 +145,22 @@ export default {
         callback()
       }
     }
+    const serverNameReg = /^[a-zA-Z][0-9A-Za-z_]{2,14}/
+    const validateServerName = (rule, value, callback) => {
+      if (!serverNameReg.test(value)) {
+        callback(new Error('服务器名称仅支持字母开头的数字，字母，以及下划线的组合，并且大于等于3位，不可超过15位！'))
+      } else {
+        callback()
+      }
+    }
+    const serverDescReg = /.{0,100}/
+    const validateServerDesc = (rule, value, callback) => {
+      if (!serverDescReg.test(value)) {
+        callback(new Error('服务器描述应少于100字！'))
+      } else {
+        callback()
+      }
+    }
     return {
       activeNames: [],
       tableKey: 0,
@@ -153,6 +180,8 @@ export default {
       statusOptions: ['published', 'draft', 'deleted'],
       showReviewer: false,
       registerServerModel: {
+        name: '',
+        description: '',
         host: '0.0.0.0',
         port: 22,
         admin_account_name: '',
@@ -163,6 +192,13 @@ export default {
       registerServerConnectionTestLoading: false,
       registerServerConfirmLoading: false,
       rules: {
+        name: [
+          { required: true, message: '服务器名称不能为空', trigger: 'change' },
+          { validator: validateServerName, trigger: 'change' }
+        ],
+        description: [
+          { validator: validateServerDesc, trigger: 'change' }
+        ],
         host: [
           { required: true, message: 'ip地址不能为空', trigger: 'change' },
           { validator: validateHost, trigger: 'change' }
@@ -292,7 +328,10 @@ export default {
         const os_type = osTypesLabel2Value[this.registerServerModel.os_type_label] || 'os_type_linux'
         this.registerServerConfirmLoading = true
         const _this = this
-        return createServer(this.registerServerModel.host,
+        return createServer(
+          this.registerServerModel.name,
+          this.registerServerModel.description,
+          this.registerServerModel.host,
           this.registerServerModel.port,
           os_type,
           this.registerServerModel.admin_account_name,
@@ -330,5 +369,15 @@ export default {
 
 .servers-collapse-title:hover {
   background-color: #EEEEEE;
+}
+
+.search-container {
+  display: flex;
+  align-items: center;
+  justify-content: left;
+}
+
+.search-container > * {
+  margin-left: 20px;
 }
 </style>

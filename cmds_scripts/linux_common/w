@@ -1,1 +1,1 @@
-sudo w -s -h -u
+export PROCPS_USERLEN=20 && w -s -h -u || w -s -h -u

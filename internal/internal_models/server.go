@@ -9,6 +9,8 @@ import (
 )
 
 type ServerCreateRequest struct {
+	Name             string           `form:"name" json:"name"`
+	Description      string           `form:"description" json:"description"`
 	Host             string           `form:"host" json:"host"`
 	Port             uint             `form:"port" json:"port"`
 	OSType           da_models.OSType `form:"os_type" json:"os_type"`
@@ -17,6 +19,16 @@ type ServerCreateRequest struct {
 }
 
 type ServerCreateResponse struct {
+}
+
+type ServerUpdateRequest struct {
+	Name             string `form:"name" json:"name"`
+	Description      string `form:"description" json:"description"`
+	AdminAccountName string `form:"admin_account_name" json:"admin_account_name"`
+	AdminAccountPwd  string `form:"admin_account_pwd" json:"admin_account_pwd"`
+}
+
+type ServerUpdateResponse struct {
 }
 
 type ServerDeleteRequest struct {
@@ -93,6 +105,8 @@ type ServerBasic struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `json:"deleted_at"`
 
+	Name             string           `json:"name"`
+	Description      string           `json:"description"`
 	Host             string           `json:"host"`
 	Port             uint             `json:"port"`
 	AdminAccountName string           `json:"admin_account_name"`

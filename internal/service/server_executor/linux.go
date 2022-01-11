@@ -1,8 +1,7 @@
-package service
+package server_executor
 
 import (
 	"ServerServing/config"
-	daModels "ServerServing/da/mysql/da_models"
 	SErr "ServerServing/err"
 	"ServerServing/internal/internal_models"
 	"ServerServing/util"
@@ -10,10 +9,8 @@ import (
 	"fmt"
 	"golang.org/x/crypto/ssh"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
-	"os"
 	"path"
 	"regexp"
 	"strconv"
@@ -22,174 +19,11 @@ import (
 	"time"
 )
 
-type LinuxOSType string
-
-const (
-	Unknown LinuxOSType = "unknown"
-	Ubuntu  LinuxOSType = "ubuntu"
-	CentOS  LinuxOSType = "centos"
-)
-
-type openExecutorServiceParam struct {
-	Host             string
-	Port             uint
-	OSType           daModels.OSType
-	AdminAccountName string
-	AdminAccountPwd  string
-}
-
-func openExecutorService(param *openExecutorServiceParam) (ExecutorService, *SErr.APIErr) {
-	switch param.OSType {
-	case daModels.OSTypeLinux:
-		return OpenLinuxSSHExecutorService(param.Host, param.Port, param.AdminAccountName, param.AdminAccountPwd)
-	default:
-		panic("Unimplemented")
-	}
-}
-
-// use loadCmdScript to load a file-base command or script
-var loadCmdScript = func() func(path, name string) (string, *SErr.APIErr) {
-	cache := map[string]string{}
-	refresh := map[string]time.Time{}
-	refreshInterval := 1 * time.Minute
-	genKey := func(path, name string) string {
-		return fmt.Sprintf("Path:%s, Name:%s", path, name)
-	}
-	return func(fPath, name string) (string, *SErr.APIErr) {
-		cmdKey := genKey(fPath, name)
-		if _, ok := refresh[cmdKey]; !ok {
-			refresh[cmdKey] = time.Now()
-		}
-		if lastRefresh, ok := refresh[cmdKey]; ok && time.Now().Sub(lastRefresh) < refreshInterval {
-			cmd := cache[cmdKey]
-			if cmd != "" {
-				return cmd, nil
-			}
-		}
-		p := path.Join(fPath, name)
-		f, err := os.Open(p)
-		if err != nil {
-			panic(err)
-		}
-		bs, err := ioutil.ReadAll(f)
-		if err != nil {
-			log.Printf("loadCmdScript ioutil.readAll failed")
-			return "", SErr.InternalErr.CustomMessageF("loadCmdScript加载命令行数据失败！err=[%s]", err.Error())
-		}
-		cmd := string(bs)
-		cache[cmdKey] = cmd
-		return cmd, nil
-	}
-}()
-
-// ExecutorService 描述远端命令组成的的外部可用接口。目前只包括Linux服务器。
-// 其中每个接口的第一个返回参数永远都是从服务器返回的真实output，用于在复杂情况下debug，或者直接给用户展示它的内容。
-type ExecutorService interface {
-	Move(src, dst string, force bool) (*ExecutorServiceVoidResp, *SErr.APIErr)
-	FileExists(filepath string) (*ExecutorServiceExistsResp, *SErr.APIErr)
-	DirExists(dirPath string) (*ExecutorServiceExistsResp, *SErr.APIErr)
-	PathExists(path string) (*ExecutorServiceExistsResp, *SErr.APIErr)
-	Mkdir(dirPath string) (*ExecutorServiceVoidResp, *SErr.APIErr)
-	MkdirIfNotExists(dirPath string) (*ExecutorServiceVoidResp, *SErr.APIErr)
-
-	GetCPUMemProcessesUsages() (*ExecutorServiceCPUMemProcessesUsagesResp, *SErr.APIErr)
-	GetGPUUsages() (*ExecutorServiceVoidResp, *SErr.APIErr)
-
-	AddAccount(accountName, pwd string) (*ExecutorServiceVoidResp, *SErr.APIErr)
-	DeleteAccount(accountName string) (*ExecutorServiceVoidResp, *SErr.APIErr)
-	GetAccountList() (*ExecutorServiceGetAccountListResp, *SErr.APIErr)
-	GetBackupDir(accountName string) (*ExecutorServiceGetBackupDirResp, *SErr.APIErr)
-	BackupAccountHomeDir(accountName string) (*ExecutorServiceBackupAccountResp, *SErr.APIErr)
-	RecoverAccountHomeDir(accountName string, force bool) (*ExecutorServiceRecoverAccountResp, *SErr.APIErr)
-	GetAccountHomeDir(accountName string) (*ExecutorServiceGetAccountHomeDirResp, *SErr.APIErr)
-
-	GetGPUHardware() (*ExecutorServiceGPUHardwareResp, *SErr.APIErr)
-	GetCPUHardware() (*ExecutorServiceCPUHardwareResp, *SErr.APIErr)
-	GetMemoryHardware() (*ExecutorServiceMemoryHardwareResp, *SErr.APIErr)
-
-	GetRemoteAccessInfos() (*ExecutorServiceRemoteAccessResp, *SErr.APIErr)
-
-	io.Closer
-
-	String() string
-}
-
-type ExecutorServiceRespCommon struct {
-	Output string
-}
-
-type ExecutorServiceVoidResp struct {
-	ExecutorServiceRespCommon
-}
-
-type ExecutorServiceExistsResp struct {
-	ExecutorServiceRespCommon
-	Exists bool
-}
-
-type ExecutorServiceBoolResp struct {
-	ExecutorServiceRespCommon
-	Result bool
-}
-
-type ExecutorServiceBackupAccountResp struct {
-	ExecutorServiceRespCommon
-	TargetDir string
-}
-
-type ExecutorServiceRecoverAccountResp struct {
-	ExecutorServiceRespCommon
-	HomeDir string
-}
-
-type ExecutorServiceGetAccountHomeDirResp struct {
-	ExecutorServiceRespCommon
-	HomeDir string
-}
-
-type ExecutorServiceGetAccountListResp struct {
-	ExecutorServiceRespCommon
-	Accounts []*internal_models.ServerAccount
-}
-
-type ExecutorServiceCPUMemProcessesUsagesResp struct {
-	ExecutorServiceRespCommon
-	CPUMemUsage  *internal_models.ServerCPUMemUsage
-	ProcessInfos []*internal_models.ServerProcessInfo
-}
-
-type ExecutorServiceCPUHardwareResp struct {
-	ExecutorServiceRespCommon
-	CPU *internal_models.ServerCPUs
-}
-
-type ExecutorServiceGPUHardwareResp struct {
-	ExecutorServiceRespCommon
-	GPUs []*internal_models.ServerGPU
-}
-
-type ExecutorServiceMemoryHardwareResp struct {
-	ExecutorServiceRespCommon
-	MemoryStats *internal_models.ServerMemory
-}
-
-type ExecutorServiceRemoteAccessResp struct {
-	ExecutorServiceRespCommon
-	RemoteAccessingAccountInfos []*internal_models.ServerRemoteAccessingAccount
-}
-
-type ExecutorServiceGetBackupDirResp struct {
-	ExecutorServiceRespCommon
-	BackupDir  string
-	PathExists bool
-	DirExists  bool
-}
-
-// OpenLinuxSSHExecutorService
+// openLinuxSSHExecutorService
 // 获取一个到某服务器的SSH Executor服务实例。建立新的ssh连接。在一次http请求中复用这个服务可以减少连接的创建数量。
 // 目前不确定是否可以在多个请求间共享，暂时不太建议这么做（需要测试）。这容易引起并发问题，反正总的并发量不高，目前先随便做一做。
-func OpenLinuxSSHExecutorService(host string, port uint, account, pwd string) (ExecutorService, *SErr.APIErr) {
-	SSHConn, err := ConnectLinuxSSH(host, port, account, pwd)
+func openLinuxSSHExecutorService(host string, port uint, account, pwd string) (ExecutorService, *SErr.APIErr) {
+	SSHConn, err := openLinuxSSHConnection(host, port, account, pwd)
 	if err != nil {
 		return nil, SErr.SSHConnectionErr.CustomMessageF("与该服务器建立SSH连接失败！服务器地址为%s:%d，用户名为：%s，密码为：%s", host, port, account, pwd)
 	}
@@ -231,6 +65,8 @@ func OpenLinuxSSHExecutorService(host string, port uint, account, pwd string) (E
 }
 
 type LinuxSSHExecutorServiceTemplate struct {
+	*executorServiceCommon
+
 	Host    string
 	Port    uint
 	Account string
@@ -251,15 +87,16 @@ func NewLinuxSSHExecutorServiceTemplate(osType LinuxOSType, Account string, Pwd 
 	common := path.Join(csp, "linux_common")
 	centos := path.Join(csp, "centos")
 	return &LinuxSSHExecutorServiceTemplate{
-		Host:       SSHConn.Host,
-		Port:       SSHConn.Port,
-		Account:    Account,
-		Pwd:        Pwd,
-		OSType:     osType,
-		SSHConn:    SSHConn,
-		commonPath: common,
-		ubuntuPath: ubuntu,
-		centosPath: centos,
+		executorServiceCommon: &executorServiceCommon{},
+		Host:                  SSHConn.Host,
+		Port:                  SSHConn.Port,
+		Account:               Account,
+		Pwd:                   Pwd,
+		OSType:                osType,
+		SSHConn:               SSHConn,
+		commonPath:            common,
+		ubuntuPath:            ubuntu,
+		centosPath:            centos,
 	}
 
 }
@@ -495,7 +332,7 @@ func (s *LinuxSSHExecutorServiceTemplate) GetCPUMemProcessesUsages() (*ExecutorS
 		splits := util.SplitSpaces(line)
 		if len(splits) != 12 {
 			if len(resp.ProcessInfos) > 0 {
-				// 如果已经开始分析Proc行的数据了，但是却没有匹配成功，则改行数据可能出现匹配问题，打log看看
+				// 如果已经开始分析Proc行的数据了，但是却没有匹配成功，则此行数据可能出现匹配问题，打log看看
 				log.Printf("出现Proc行后，但是匹配失败的：line=[%s]", line)
 			}
 			return
@@ -807,10 +644,13 @@ func (s *LinuxSSHExecutorServiceTemplate) RecoverAccountHomeDir(accountName stri
 
 func (s *LinuxSSHExecutorServiceTemplate) GetRemoteAccessInfos() (*ExecutorServiceRemoteAccessResp, *SErr.APIErr) {
 	resp := &ExecutorServiceRemoteAccessResp{}
+
+	//_, _ = s.SSHConn.SendCommands("export PROCPS_USERLEN=20")
 	cmd, err := loadCmdScript(s.commonPath, "w")
 	if err != nil {
 		return resp, err
 	}
+	log.Printf("LinuxSSHExecutorServiceTemplate GetRemoteAccessInfos cmd=[%s]", cmd)
 	output, err := s.SSHConn.SendCommands(cmd)
 	resp.Output = output
 	log.Printf("LinuxSSHExecutorServiceTemplate GetRemoteAccessInfos w executed, output=[%s], err=[%v]", output, err)
@@ -875,41 +715,8 @@ func (s *LinuxSSHExecutorServiceTemplate) GetGPUUsages() (*ExecutorServiceVoidRe
 	return resp, nil
 }
 
-func (s *LinuxSSHExecutorServiceTemplate) AddAccount(accountName, pwd string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
-	panic("Template Method Call Is Not Allowed.")
-}
-
-func (s *LinuxSSHExecutorServiceTemplate) DeleteAccount(accountName string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
-	panic("Template Method Call Is Not Allowed.")
-}
-
-func (s *LinuxSSHExecutorServiceTemplate) GetAccountHomeDir(accountName string) (*ExecutorServiceGetAccountHomeDirResp, *SErr.APIErr) {
-	panic("Template Method Call Is Not Allowed.")
-}
-
-func (s *LinuxSSHExecutorServiceTemplate) GetAccountList() (*ExecutorServiceGetAccountListResp, *SErr.APIErr) {
-	panic("Template Method Call Is Not Allowed.")
-}
-
-func (s *LinuxSSHExecutorServiceTemplate) Close() error {
-	return s.SSHConn.Close()
-}
-
-type UbuntuSSHExecutorService struct {
-	*LinuxSSHExecutorServiceTemplate
-	ubuntuPath string
-}
-
-func NewUbuntuSSHExecutorService() *UbuntuSSHExecutorService {
-	pCmdScrPath := config.GetConfig().CmdsScriptsPath
-	ubuntu := path.Join(pCmdScrPath, "ubuntu")
-	return &UbuntuSSHExecutorService{
-		ubuntuPath: ubuntu,
-	}
-}
-
 // LoadSudoersLines 查询/etc/sudoers文件，返回去掉注释的每行内容
-func (s *UbuntuSSHExecutorService) LoadSudoersLines() (string, []string, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) LoadSudoersLines() (string, []string, *SErr.APIErr) {
 	// 这里给出一个sudoers文件的样例。需要注意的是，要过滤掉注释的行。
 	// #
 	// # This file MUST be edited with the 'visudo' command as root.
@@ -942,7 +749,7 @@ func (s *UbuntuSSHExecutorService) LoadSudoersLines() (string, []string, *SErr.A
 	//
 	// #includedir /etc/sudoers.d
 	// someuser ALL=(ALL:ALL) ALL
-	cmd, err := loadCmdScript(s.ubuntuPath, "cat_sudoers")
+	cmd, err := loadCmdScript(s.commonPath, "cat_sudoers")
 	if err != nil {
 		return "", nil, err
 	}
@@ -950,7 +757,7 @@ func (s *UbuntuSSHExecutorService) LoadSudoersLines() (string, []string, *SErr.A
 	if err != nil {
 		return "", nil, err
 	}
-	log.Printf("UbuntuSSHExecutorService GetSudoersList cmd=[%s], output=[%s]", cmd, output)
+	log.Printf("LinuxSSHExecutorServiceTemplate GetSudoersList cmd=[%s], output=[%s]", cmd, output)
 	lines := util.SplitLine(output)
 	validLines := make([]string, 0, 4)
 	for _, line := range lines {
@@ -965,7 +772,7 @@ func (s *UbuntuSSHExecutorService) LoadSudoersLines() (string, []string, *SErr.A
 }
 
 // Add2Sudoers 为用户添加到sudo权限
-func (s *UbuntuSSHExecutorService) Add2Sudoers(accountName string) (string, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) Add2Sudoers(accountName string) (string, *SErr.APIErr) {
 	output, lines, err := s.LoadSudoersLines()
 	if err != nil {
 		return output, err
@@ -978,18 +785,18 @@ func (s *UbuntuSSHExecutorService) Add2Sudoers(accountName string) (string, *SEr
 		}
 		if m[1] == accountName {
 			// 在已经有的SudoersFile已经找到了该用户，则放弃本次操作
-			log.Printf("UbuntuSSHExecutorService=[%s], Add2Sudoers found account already in sudoers file, line=[%s]", s, line)
+			log.Printf("LinuxSSHExecutorServiceTemplate=[%s], Add2Sudoers found account already in sudoers file, line=[%s]", s, line)
 			return "", nil
 		}
 	}
 
-	cmd, err := loadCmdScript(s.ubuntuPath, "add_sudoers")
+	cmd, err := loadCmdScript(s.commonPath, "add_sudoers")
 	cmd = fmt.Sprintf(cmd, accountName)
 	if err != nil {
 		return "", err
 	}
 	output, err = s.SSHConn.SendCommands(cmd)
-	log.Printf("UbuntuSSHExecutorService=[%s], Add2Sudoers output=[%s]", s, output)
+	log.Printf("LinuxSSHExecutorServiceTemplate=[%s], Add2Sudoers output=[%s]", s, output)
 	if err != nil {
 		return output, err
 	}
@@ -997,32 +804,39 @@ func (s *UbuntuSSHExecutorService) Add2Sudoers(accountName string) (string, *SEr
 }
 
 // AddAccount 添加一个用户，在该用户有可能是重复的情况下添加。
-func (s *UbuntuSSHExecutorService) AddAccount(accountName, pwd string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) AddAccount(accountName, pwd string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
 	resp := &ExecutorServiceVoidResp{}
 	if pwd == "" || accountName == "" {
-		panic("UbuntuSSHExecutorService AddAccount should have valid param")
+		panic("LinuxSSHExecutorServiceTemplate AddAccount should have valid param")
 	}
-	cmd, err := loadCmdScript(s.ubuntuPath, "pwd_digest")
-	if err != nil {
-		return resp, err
-	}
-	// 第一步，使用perl生成加密后的密码。
-	cmd = fmt.Sprintf(cmd, pwd)
-	digestPwd, err := s.SSHConn.SendCommands(cmd)
-	log.Printf("UbuntuSSHExecutorService=[%s], AddAccount, pwd_digest output=[%s]", s, digestPwd)
-	if err != nil {
-		return resp, err
-	}
+	//cmd, err := loadCmdScript(s.commonPath, "openssl_pwd_digest")
+	//if err != nil {
+	//	return resp, err
+	//}
+	// 第一步，使用生成加密后的密码。
+	//cmd = fmt.Sprintf(cmd, pwd)
+	//digestPwd := s.encrypt(pwd)
+	//// digestPwd, err := s.SSHConn.SendCommands(cmd)
+	//log.Printf("LinuxSSHExecutorServiceTemplate=[%s], AddAccount, pwd_digest output=[%s]", s, digestPwd)
+	//if err != nil {
+	//	return resp, err
+	//}
 	// 第二步，使用生成的密码添加用户
-	cmd, err = loadCmdScript(s.ubuntuPath, "user_add")
-	if err != nil {
-		return resp, err
-	}
-	// useradd -m -p "%s" "%s" 需要格式化Pwd以及Name
-	cmd = fmt.Sprintf(cmd, digestPwd, accountName)
+	//cmd, err := loadCmdScript(s.commonPath, "user_add")
+	//if err != nil {
+	//	return resp, err
+	//}
+	//// useradd -m -p "%s" "%s" 需要格式化Pwd以及Name
+	//cmd = fmt.Sprintf(cmd, digestPwd, accountName)
+
+	// 使用 user_add_with_openssl_pwd
+	// sudo useradd -s /bin/bash -m -p $(openssl passwd -crypt "%s") "%s"
+	cmd, err := loadCmdScript(s.commonPath, "user_add_with_openssl_pwd")
+	cmd = fmt.Sprintf(cmd, pwd, accountName)
+	log.Printf("LinuxSSHExecutorServiceTemplate=[%s], AddAccount cmd=[%s]", s, cmd)
 	output, err := s.SSHConn.SendCommands(cmd)
 	resp.Output = output
-	log.Printf("UbuntuSSHExecutorService=[%s], AddAccount, user_add cmd output=[%s]", s, output)
+	log.Printf("LinuxSSHExecutorServiceTemplate=[%s], AddAccount, user_add cmd output=[%s]", s, output)
 	if err != nil {
 		return resp, err
 	}
@@ -1037,15 +851,15 @@ func (s *UbuntuSSHExecutorService) AddAccount(accountName, pwd string) (*Executo
 	return resp, nil
 }
 
-func (s *UbuntuSSHExecutorService) GetAccountList() (*ExecutorServiceGetAccountListResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) GetAccountList() (*ExecutorServiceGetAccountListResp, *SErr.APIErr) {
 	resp := &ExecutorServiceGetAccountListResp{}
-	cmd, err := loadCmdScript(s.ubuntuPath, "get_account_list")
+	cmd, err := loadCmdScript(s.commonPath, "get_account_list")
 	if err != nil {
 		return resp, err
 	}
 	output, err := s.SSHConn.SendCommands(cmd)
 	resp.Output = output
-	log.Printf("UbuntuSSHExecutorService=[%s] GetAccountList, output=[%s]", s, output)
+	log.Printf("LinuxSSHExecutorServiceTemplate=[%s] GetAccountList, output=[%s]", s, output)
 	if err != nil {
 		return resp, err
 	}
@@ -1055,7 +869,7 @@ func (s *UbuntuSSHExecutorService) GetAccountList() (*ExecutorServiceGetAccountL
 	lines := util.SplitLine(output)
 	accounts := make([]*internal_models.ServerAccount, 0, 4)
 	for _, line := range lines {
-		log.Printf("UbuntuSSHExecutorService=[%s] GetAccountList, line=[%s]", s, line)
+		log.Printf("LinuxSSHExecutorServiceTemplate=[%s] GetAccountList, line=[%s]", s, line)
 		subs := reg.FindStringSubmatch(line)
 		if len(subs) < 4 {
 			continue
@@ -1084,9 +898,9 @@ func (s *UbuntuSSHExecutorService) GetAccountList() (*ExecutorServiceGetAccountL
 }
 
 // DeleteAccount 删除Linux账户，需注意，删除账户后，使用GetAccountHomeDir会找不到该用户的home目录。所以需要备份的话，需要在删除账户之前做。
-func (s *UbuntuSSHExecutorService) DeleteAccount(accountName string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) DeleteAccount(accountName string) (*ExecutorServiceVoidResp, *SErr.APIErr) {
 	resp := &ExecutorServiceVoidResp{}
-	cmd, err := loadCmdScript(s.ubuntuPath, "user_del")
+	cmd, err := loadCmdScript(s.commonPath, "user_del")
 	if err != nil {
 		return resp, err
 	}
@@ -1101,9 +915,9 @@ func (s *UbuntuSSHExecutorService) DeleteAccount(accountName string) (*ExecutorS
 }
 
 // GetAccountHomeDir 获取账户的home目录
-func (s *UbuntuSSHExecutorService) GetAccountHomeDir(accountName string) (*ExecutorServiceGetAccountHomeDirResp, *SErr.APIErr) {
+func (s *LinuxSSHExecutorServiceTemplate) GetAccountHomeDir(accountName string) (*ExecutorServiceGetAccountHomeDirResp, *SErr.APIErr) {
 	resp := &ExecutorServiceGetAccountHomeDirResp{}
-	cmd, err := loadCmdScript(s.ubuntuPath, "get_user_home_dir")
+	cmd, err := loadCmdScript(s.commonPath, "get_user_home_dir")
 	if err != nil {
 		return resp, err
 	}
@@ -1111,13 +925,43 @@ func (s *UbuntuSSHExecutorService) GetAccountHomeDir(accountName string) (*Execu
 	cmd = fmt.Sprintf(cmd, accountName)
 	output, err := s.SSHConn.SendCommands(cmd)
 	resp.Output = output
-	log.Printf("UbuntuSSHExecutorService=[%s] GetAccountHomeDir, output=[%s]", s, output)
+	log.Printf("LinuxSSHExecutorServiceTemplate=[%s] GetAccountHomeDir, output=[%s]", s, output)
 	if err != nil {
 		return resp, err
 	}
 	homeDir := strings.TrimSpace(output)
 	resp.HomeDir = homeDir
 	return resp, nil
+}
+
+func (s *LinuxSSHExecutorServiceTemplate) Close() error {
+	return s.SSHConn.Close()
+}
+
+type UbuntuSSHExecutorService struct {
+	*LinuxSSHExecutorServiceTemplate
+	ubuntuPath string
+}
+
+func NewUbuntuSSHExecutorService() *UbuntuSSHExecutorService {
+	pCmdScrPath := config.GetConfig().CmdsScriptsPath
+	ubuntu := path.Join(pCmdScrPath, "ubuntu")
+	return &UbuntuSSHExecutorService{
+		ubuntuPath: ubuntu,
+	}
+}
+
+type CentOSSSHExecutorService struct {
+	*LinuxSSHExecutorServiceTemplate
+	centOSPath string
+}
+
+func NewCentOSSSHExecutorService() *CentOSSSHExecutorService {
+	pCmdScrPath := config.GetConfig().CmdsScriptsPath
+	centos := path.Join(pCmdScrPath, "centos")
+	return &CentOSSSHExecutorService{
+		centOSPath: centos,
+	}
 }
 
 // LinuxSSHConnection SSH的底层连接。
@@ -1129,7 +973,7 @@ type LinuxSSHConnection struct {
 	Account  string
 }
 
-func ConnectLinuxSSH(Host string, Port uint, account, password string) (*LinuxSSHConnection, *SErr.APIErr) {
+func openLinuxSSHConnection(Host string, Port uint, account, password string) (*LinuxSSHConnection, *SErr.APIErr) {
 	sshConfig := &ssh.ClientConfig{
 		Timeout: 10 * time.Second,
 		User:    account,
@@ -1192,12 +1036,14 @@ func (conn *LinuxSSHConnection) CheckOSInfo() (string, LinuxOSType, *SErr.APIErr
 	return output, osType, nil
 }
 
-func (conn *LinuxSSHConnection) SendCommandsNoSudo(cmds ...string) (string, *SErr.APIErr) {
+func (conn *LinuxSSHConnection) SendCommandsNoSudo(envs []string, cmds ...string) (string, *SErr.APIErr) {
 	session, err := conn.NewSession()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer session.Close()
+	defer func() {
+		_ = session.Close()
+	}()
 
 	cmd := strings.Join(cmds, "; ")
 	output, err := session.CombinedOutput(cmd)
@@ -1208,20 +1054,59 @@ func (conn *LinuxSSHConnection) SendCommandsNoSudo(cmds ...string) (string, *SEr
 	return string(output), nil
 }
 
-func (conn *LinuxSSHConnection) SendCommands(cmds ...string) (string, *SErr.APIErr) {
+func (conn *LinuxSSHConnection) withSession(envs map[string]string, f func(session *ssh.Session)) *SErr.APIErr {
 	session, err := conn.NewSession()
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("LinuxSSHConnection ssh new session failed, err=[%v]", err)
+		return SErr.SSHConnectionErr.CustomMessageF("SSH New Session Failed, err=[%v]", err)
 	}
-	defer session.Close()
+	if envs != nil {
+		for key, value := range envs {
+			envErr := session.Setenv(key, value)
+			if envErr != nil {
+				log.Printf("LinuxSSHConnection withSession Setenv failed, key=[%s], value=[%s], err=[%v]", key, value, envErr)
+			}
+		}
+	}
+	f(session)
+	defer func() {
+		_ = session.Close()
+	}()
+	return nil
+}
 
+func (conn *LinuxSSHConnection) SendCommands(cmds ...string) (string, *SErr.APIErr) {
+	var output string
+	var err *SErr.APIErr
+	sessErr := conn.withSession(nil, func(session *ssh.Session) {
+		output, err = conn.sendCommandsWithSession(session, cmds...)
+	})
+	if sessErr != nil {
+		return "", SErr.SSHConnectionErr.CustomMessageF("SSH New Session Failed")
+	}
+	return output, err
+}
+
+func (conn *LinuxSSHConnection) SendCommandsWithEnv(envs map[string]string, cmds ...string) (string, *SErr.APIErr) {
+	var output string
+	var err *SErr.APIErr
+	sessErr := conn.withSession(envs, func(session *ssh.Session) {
+		output, err = conn.sendCommandsWithSession(session, cmds...)
+	})
+	if sessErr != nil {
+		return "", SErr.SSHConnectionErr.CustomMessageF("SSH New Session Failed")
+	}
+	return output, err
+}
+
+func (conn *LinuxSSHConnection) sendCommandsWithSession(session *ssh.Session, cmds ...string) (string, *SErr.APIErr) {
 	modes := ssh.TerminalModes{
 		// ssh.ECHO:          1,     // disable echoing
 		ssh.TTY_OP_ISPEED: 14400, // input speed = 14.4kbaud
 		ssh.TTY_OP_OSPEED: 14400, // output speed = 14.4kbaud
 	}
 
-	err = session.RequestPty("xterm", 800, 800, modes)
+	err := session.RequestPty("xterm", 1600, 1600, modes)
 	if err != nil {
 		return "", SErr.SSHConnectionErr.CustomMessageF("发送ssh命令失败！失败信息为：%s", err.Error())
 	}
@@ -1286,17 +1171,4 @@ func (conn *LinuxSSHConnection) SendCommands(cmds ...string) (string, *SErr.APIE
 		outs = append(outs, str)
 	}
 	return strings.Join(outs, "\n"), nil
-}
-
-type CentOSSSHExecutorService struct {
-	*LinuxSSHExecutorServiceTemplate
-	centOSPath string
-}
-
-func NewCentOSSSHExecutorService() *CentOSSSHExecutorService {
-	pCmdScrPath := config.GetConfig().CmdsScriptsPath
-	centos := path.Join(pCmdScrPath, "centos")
-	return &CentOSSSHExecutorService{
-		centOSPath: centos,
-	}
 }

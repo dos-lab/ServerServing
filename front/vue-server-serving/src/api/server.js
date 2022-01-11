@@ -47,11 +47,13 @@ export function connectionTest(host, port, os_type, account_name, account_pwd) {
   })
 }
 
-export function createServer(host, port, os_type, admin_account_name, admin_account_pwd) {
+export function createServer(name, description, host, port, os_type, admin_account_name, admin_account_pwd) {
   return request({
     url: `/api/v1/servers`,
     method: 'post',
     data: {
+      name: name,
+      description: description,
       host: host,
       port: port,
       os_type: os_type,
@@ -125,10 +127,15 @@ export function backupDirInfo(host, port, account_name) {
   })
 }
 
-// export function update(userID, data) {
-//   return request({
-//     url: `/api/v1/servers/${userID}`,
-//     method: 'put',
-//     data
-//   })
-// }
+export function updateServer(host, port, name, description, admin_account_name, admin_account_pwd) {
+  return request({
+    url: `/api/v1/servers/${host}/${port}`,
+    method: 'put',
+    data: {
+      admin_account_name: admin_account_name,
+      admin_account_pwd: admin_account_pwd,
+      description: description,
+      name: name
+    }
+  })
+}

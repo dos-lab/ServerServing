@@ -119,6 +119,12 @@ var doc = `{
                         "schema": {
                             "$ref": "#/definitions/internal_models.ServerCreateRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "x-token",
+                        "name": "x-token",
+                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -147,6 +153,12 @@ var doc = `{
                         "schema": {
                             "$ref": "#/definitions/internal_models.ServerDeleteRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "x-token",
+                        "name": "x-token",
+                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -233,6 +245,12 @@ var doc = `{
                         "schema": {
                             "$ref": "#/definitions/internal_models.ServerAccountDeleteRequest"
                         }
+                    },
+                    {
+                        "type": "string",
+                        "description": "x-token",
+                        "name": "x-token",
+                        "in": "header"
                     }
                 ],
                 "responses": {
@@ -397,6 +415,54 @@ var doc = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/internal_models.ServerInfoResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "server"
+                ],
+                "summary": "更新服务器数据",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "host",
+                        "name": "host",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "port",
+                        "name": "port",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "serverUpdateRequest",
+                        "name": "serverUpdateRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerUpdateRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "x-token",
+                        "name": "x-token",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_models.ServerUpdateResponse"
                         }
                     }
                 }
@@ -846,7 +912,13 @@ var doc = `{
                 "deleted_at": {
                     "$ref": "#/definitions/gorm.DeletedAt"
                 },
+                "description": {
+                    "type": "string"
+                },
                 "host": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "os_type": {
@@ -954,7 +1026,13 @@ var doc = `{
                 "admin_account_pwd": {
                     "type": "string"
                 },
+                "description": {
+                    "type": "string"
+                },
                 "host": {
+                    "type": "string"
+                },
+                "name": {
                     "type": "string"
                 },
                 "os_type": {
@@ -1160,7 +1238,7 @@ var doc = `{
                 }
             }
         },
-        "internal_models.ServerRemoteAccessingAccountInfo": {
+        "internal_models.ServerRemoteAccessingAccount": {
             "type": "object",
             "properties": {
                 "account_name": {
@@ -1181,13 +1259,33 @@ var doc = `{
                 "infos": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/internal_models.ServerRemoteAccessingAccountInfo"
+                        "$ref": "#/definitions/internal_models.ServerRemoteAccessingAccount"
                     }
                 },
                 "output": {
                     "type": "string"
                 }
             }
+        },
+        "internal_models.ServerUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "admin_account_name": {
+                    "type": "string"
+                },
+                "admin_account_pwd": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_models.ServerUpdateResponse": {
+            "type": "object"
         },
         "internal_models.SessionsCheckResponse": {
             "type": "object",

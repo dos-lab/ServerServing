@@ -1,0 +1,1 @@
+sudo useradd -s /bin/bash -m -p $(openssl passwd -crypt "%s") "%s"
