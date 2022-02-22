@@ -40,5 +40,5 @@ func registerMiddleware(r *gin.Engine) {
 	r.Use(middlewares.Cors())
 	r.Use(middlewares.Recover())
 	r.Use(middlewares.ErrHandler())
-	r.Use(middlewares.RedisSession())
+	//r.Use(middlewares.RedisSession())
 }

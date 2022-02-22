@@ -325,7 +325,8 @@ func (s *LinuxSSHExecutorServiceTemplate) GetCPUMemProcessesUsages() (*ExecutorS
 		usage := 100 * float64(used) / float64(free+used+buff)
 		total := float64(free + used + buff)
 		resp.CPUMemUsage.MemUsage = &usage
-		resp.CPUMemUsage.MemTotal = strconv.Itoa(int(total/1024.)) + "MB"
+		totalStr := strconv.Itoa(int(total/1024.)) + "MB"
+		resp.CPUMemUsage.MemTotal = &totalStr
 	}
 	matchProcLine := func(line string) {
 		line = strings.TrimSpace(line)
@@ -369,6 +370,46 @@ func (s *LinuxSSHExecutorServiceTemplate) GetCPUMemProcessesUsages() (*ExecutorS
 		matchCPU(line)
 		matchMem(line)
 		matchProcLine(line)
+	}
+	if resp.CPUMemUsage.MemUsage == nil {
+		// use cat /proc/meminfo
+		log.Printf("LinuxSSHExecutorServiceTemplate GetCPUMemProcessesUsages use /proc/meminfo")
+		cmd, err = loadCmdScript(s.commonPath, "meminfo")
+		if err != nil {
+			return resp, err
+		}
+		output, err := s.SSHConn.SendCommands(cmd)
+		resp.Output += fmt.Sprintf("--- meminfo ---\n%s", output)
+		if err != nil {
+			log.Printf("LinuxSSHExecutorServiceTemplate GetCPUMemProcessesUsages meminfo failed, err=[%+v]", err)
+			return resp, err
+		}
+		lines := util.SplitLine(output)
+		totalReg := regexp.MustCompile(`^MemTotal:\s*([0-9]+)\s+kB$`)
+		freeReg := regexp.MustCompile(`^MemFree:\s*([0-9]+)\s+kB$`)
+		var totalMatched string
+		var freeMatched string
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			m := totalReg.FindStringSubmatch(line)
+			if len(m) == 2 {
+				totalMatched = m[1]
+			}
+			m = freeReg.FindStringSubmatch(line)
+			if len(m) == 2 {
+				freeMatched = m[1]
+			}
+		}
+		free, _ := util.ParseInt(freeMatched)
+		total, _ := util.ParseInt(totalMatched)
+		if free == 0 || total == 0 {
+			log.Printf("LinuxSSHExecutorServiceTemplate GetCPUMemProcessesUsages meminfo, parseInt return 0")
+			return resp, err
+		}
+		usage := 100 * float64(total - free) / float64(total)
+		resp.CPUMemUsage.MemUsage = &usage
+		totalStr := strconv.Itoa(total/1024) + "MB"
+		resp.CPUMemUsage.MemTotal = &totalStr
 	}
 
 	return resp, nil

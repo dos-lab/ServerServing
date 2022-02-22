@@ -270,7 +270,7 @@ type ServerCPUMemUsage struct {
 	MemUsage *float64 `json:"mem_usage"`
 
 	// MemTotal 内存总量，使用字符串固定死
-	MemTotal string `json:"mem_total"`
+	MemTotal *string `json:"mem_total"`
 }
 
 // ServerProcessInfo 描述一个在Server上的进程信息。

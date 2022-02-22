@@ -43,7 +43,7 @@ func (SessionsHandler) Create(c *gin.Context) (interface{}, *SErr.APIErr) {
 // @Param sessionsDestroyRequest body internal_models.SessionsDestroyRequest true "destroyRequest"
 // @Success 200 {object} internal_models.SessionsDestroyResponse
 func (SessionsHandler) Destroy(c *gin.Context) (interface{}, *SErr.APIErr) {
-	service.GetSessionsService().Destroy(c)
+	//service.GetSessionsService().Destroy(c)
 	return &models.SessionsDestroyResponse{}, nil
 }
 
