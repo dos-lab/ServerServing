@@ -723,18 +723,18 @@ func (s *LinuxSSHExecutorServiceTemplate) GetRemoteAccessInfos() (*ExecutorServi
 
 func (s *LinuxSSHExecutorServiceTemplate) GetGPUUsages() (*ExecutorServiceVoidResp, *SErr.APIErr) {
 	resp := &ExecutorServiceVoidResp{}
-	gpuHardwareResp, err := s.implement.GetGPUHardware()
-	if err != nil {
-		return resp, err
-	}
-	// 目前只写CUDA的。别的GPU写了也没用啊！
-	isNvidia := false
-	for _, gpu := range gpuHardwareResp.GPUs {
-		if gpu.IsNvidia() {
-			isNvidia = true
-		}
-	}
-	if isNvidia {
+	//gpuHardwareResp, err := s.implement.GetGPUHardware()
+	//if err != nil {
+	//	return resp, err
+	//}
+	//// 目前只写CUDA的。别的GPU写了也没用啊！
+	//isNvidia := false
+	//for _, gpu := range gpuHardwareResp.GPUs {
+	//	if gpu.IsNvidia() {
+	//		isNvidia = true
+	//	}
+	//}
+	//if isNvidia {
 		cmd, err := loadCmdScript(s.commonPath, "nvidia_gpu_name")
 		if err != nil {
 			return resp, err
@@ -751,9 +751,9 @@ func (s *LinuxSSHExecutorServiceTemplate) GetGPUUsages() (*ExecutorServiceVoidRe
 			return resp, err
 		}
 		return resp, nil
-	}
-	log.Printf("LinuxSSHExecutorServiceTemplate GetGPUUsages no cuda gpu, skip.")
-	return resp, nil
+	//}
+	//log.Printf("LinuxSSHExecutorServiceTemplate GetGPUUsages no cuda gpu, skip.")
+	//return resp, nil
 }
 
 // LoadSudoersLines 查询/etc/sudoers文件，返回去掉注释的每行内容
